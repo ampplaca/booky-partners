@@ -392,17 +392,19 @@ function renderSubRows(){
   wrap.innerHTML = signupRows.map((row,i)=>`
     <div class="subacct-row">
       <div>
-        <label>Nickname</label>
+        <label>Account Name</label>
         <input type="text" value="${escapeAttr(row.nickname)}" data-i="${i}" data-f="nickname" class="rowField" placeholder="alpha">
+        <div class="code-hint"></div>
       </div>
       <div>
         <label>Friend Code</label>
-        <input type="text" value="${escapeAttr(row.code)}" data-i="${i}" data-f="code" class="rowField" placeholder="MGO894GP7VJU" maxlength="12">
+        <input type="text" value="${escapeAttr(row.code)}" data-i="${i}" data-f="code" class="rowField" placeholder="MGO" maxlength="12">
         <div class="code-hint" data-hint-i="${i}"></div>
       </div>
       <div>
         <label>Needs</label>
         <input type="number" min="1" max="20" value="${row.needed}" data-i="${i}" data-f="needed" class="rowField">
+        <div class="code-hint"></div>
       </div>
       <button class="icon-btn" data-remove="${i}" title="Remove">&times;</button>
     </div>
@@ -418,7 +420,7 @@ function renderSubRows(){
         if(hint){
           if(upper === ''){ hint.textContent = ''; }
           else if(isValidFriendCode(upper)){ hint.textContent = ''; }
-          else { hint.textContent = 'Should look like MGO894GP7VJU'; hint.className = 'code-hint bad'; }
+          else { hint.textContent = 'Should be MGO followed by 9 characters'; hint.className = 'code-hint bad'; }
         }
       } else {
         signupRows[i][f] = f==='needed' ? (parseInt(e.target.value)||1) : e.target.value;
@@ -444,7 +446,7 @@ async function submitSignup(discordName, discordId){
   }
   const badRow = rows.find(r=>!isValidFriendCode(r.code.trim().toUpperCase()));
   if(badRow){
-    msg.textContent = `"${badRow.code}" doesn't look like a valid friend code (should be MGO + 9 characters, e.g. MGO894GP7VJU).`;
+    msg.textContent = `"${badRow.code}" doesn't look like a valid friend code (should be MGO followed by 9 characters).`;
     msg.className = "msg err";
     return;
   }
