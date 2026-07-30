@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Partner Carry Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@400;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --felt:#1F3D2B;
+    --felt-deep:#142A1D;
+    --felt-line: rgba(244,237,216,0.12);
+    --deed:#F4EDD8;
+    --deed-line:#C9BD98;
+    --gold:#C9A227;
+    --gold-bright:#E4C550;
+    --brick:#B5482E;
+    --ink:#22301D;
+    --ink-soft:#5B6650;
+    --paid-red:#A3352A;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 20% 10%, rgba(244,237,216,0.05), transparent 40%),
+      var(--felt);
+    background-attachment: fixed;
+    color: var(--deed);
+    font-family: 'Inter', sans-serif;
+    min-height:100vh;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px;}
+
+  header.top{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:24px; flex-wrap:wrap; gap:14px;
+  }
+  .brand{display:flex; align-items:baseline; gap:10px;}
+  .brand h1{
+    font-family:'Zilla Slab', serif; font-weight:700; font-size:28px;
+    margin:0; color:var(--deed); letter-spacing:0.3px;
+  }
+  .brand .stamp-mini{
+    font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--gold-bright);
+    border:1px solid var(--gold); border-radius:3px; padding:2px 7px; letter-spacing:1px;
+    text-transform:uppercase;
+  }
+
+  nav.tabs{display:flex; gap:6px;}
+  nav.tabs button{
+    font-family:'Zilla Slab', serif; font-weight:600; font-size:15px;
+    background:transparent; border:1px solid var(--felt-line); color: rgba(244,237,216,0.65);
+    padding:9px 18px; border-radius:6px 6px 0 0; cursor:pointer;
+    transition: all .15s ease;
+  }
+  nav.tabs button:hover{ color:var(--deed); border-color: var(--deed-line); }
+  nav.tabs button.active{
+    background:var(--deed); color:var(--felt-deep); border-color:var(--deed);
+  }
+
+  .panel{
+    background: var(--felt-deep);
+    border:1px solid var(--felt-line);
+    border-radius: 10px;
+    padding: 26px;
+  }
+
+  h2.section-title{
+    font-family:'Zilla Slab', serif; font-size:20px; margin:0 0 4px;
+    color: var(--gold-bright);
+  }
+  p.section-sub{ margin:0 0 20px; color:rgba(244,237,216,0.55); font-size:13.5px; }
+
+  /* ---- Deed card form styling ---- */
+  .deed-card{
+    background: var(--deed); color: var(--ink); border-radius: 8px;
+    padding: 20px; border: 1px solid var(--deed-line);
+    box-shadow: 0 3px 0 rgba(0,0,0,0.15);
+  }
+  label{
+    display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;
+    color: var(--ink-soft); margin-bottom:5px; font-weight:600;
+  }
+  input[type=text], input[type=number]{
+    width:100%; padding:9px 10px; border:1px solid var(--deed-line); border-radius:5px;
+    background:#FBF8EE; color:var(--ink); font-family:'Inter',sans-serif; font-size:14px;
+  }
+  input:focus{ outline:2px solid var(--gold); outline-offset:1px; }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .field{ margin-bottom:14px; }
+
+  .subacct-row{
+    display:grid; grid-template-columns: 1fr 1fr 90px 34px; gap:10px;
+    align-items:end; margin-bottom:10px; padding-bottom:10px;
+    border-bottom: 1px dashed var(--deed-line);
+  }
+  .subacct-row:last-of-type{ border-bottom:none; }
+  .icon-btn{
+    background:none; border:1px solid var(--deed-line); border-radius:5px; color:var(--brick);
+    height:36px; cursor:pointer; font-size:16px; line-height:1;
+  }
+  .icon-btn:hover{ background: rgba(181,72,46,0.08); }
+
+  .btn{
+    font-family:'Zilla Slab',serif; font-weight:600; font-size:14.5px;
+    padding:10px 20px; border-radius:6px; border:none; cursor:pointer;
+    transition: transform .1s ease;
+  }
+  .btn:active{ transform: translateY(1px); }
+  .btn-gold{ background: var(--gold); color:#2B2205; }
+  .btn-gold:hover{ background: var(--gold-bright); }
+  .btn-ghost{ background:transparent; border:1px solid var(--deed-line); color:var(--ink); }
+  .btn-add-row{
+    background:none; border:1px dashed var(--deed-line); color:var(--ink-soft);
+    padding:8px 14px; border-radius:6px; cursor:pointer; font-size:13px; font-family:'Inter';
+  }
+  .btn-add-row:hover{ border-color:var(--ink-soft); color:var(--ink); }
+
+  .form-actions{ margin-top:18px; display:flex; align-items:center; gap:14px; }
+  .msg{ font-size:13.5px; }
+  .msg.ok{ color:#2E6B3E; }
+  .msg.err{ color:var(--brick); }
+
+  /* ---- Passcode gate ---- */
+  .gate{ max-width:340px; margin: 40px auto; text-align:center; }
+  .gate input{ text-align:center; letter-spacing:3px; }
+
+  /* ---- Approve tab ---- */
+  .req-card{
+    background: var(--deed); color:var(--ink); border-radius:8px; padding:16px 18px;
+    margin-bottom:14px; border:1px solid var(--deed-line);
+  }
+  .req-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+  .req-head .who{ font-family:'Zilla Slab',serif; font-weight:700; font-size:16px; }
+  .req-head .discord{ font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft); }
+  .badge{ font-size:10px; text-transform:uppercase; letter-spacing:0.5px; padding:3px 9px; border-radius:20px; font-weight:700; }
+  .badge.pending{ background:#EADFAF; color:#7A5B00; }
+  .badge.approved{ background:#D3E7D6; color:#215A2D; }
+  .badge.rejected{ background:#F0D4CE; color:#8A2E1D; }
+  .sub-list{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+  .sub-chip{
+    font-family:'JetBrains Mono',monospace; font-size:12px; background:#FBF8EE;
+    border:1px solid var(--deed-line); border-radius:5px; padding:6px 10px;
+  }
+  .sub-chip b{ font-family:'Inter',sans-serif; font-weight:700; color:var(--ink); }
+  .req-actions{ display:flex; gap:10px; }
+  .btn-approve{ background:#2E6B3E; color:#fff; }
+  .btn-approve:hover{ background:#357C47; }
+  .btn-reject{ background:transparent; border:1px solid var(--brick); color:var(--brick); }
+  .btn-reject:hover{ background: rgba(181,72,46,0.08); }
+  .empty-note{ color:rgba(244,237,216,0.45); font-size:13.5px; padding:10px 0; }
+
+  /* ---- Board tab ---- */
+  .board-top{ display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:16px; flex-wrap:wrap; gap:12px;}
+  .add-carrier{ display:flex; gap:8px; }
+  .add-carrier input{ width:170px; }
+
+  .pool{
+    background: rgba(244,237,216,0.05); border:1px dashed var(--felt-line); border-radius:8px;
+    padding:14px; margin-bottom:24px; min-height:70px;
+    display:flex; flex-wrap:wrap; gap:10px; align-content:flex-start;
+  }
+  .pool.dragover{ border-color: var(--gold); background: rgba(201,162,39,0.07); }
+  .pool-empty{ color:rgba(244,237,216,0.35); font-size:13px; font-style:italic; padding:6px 4px; }
+
+  .tile{
+    width:118px; min-height:64px; background: var(--deed); color:var(--ink);
+    border-radius:6px; border:1px solid var(--deed-line); padding:8px 9px;
+    cursor:grab; position:relative; box-shadow:0 2px 0 rgba(0,0,0,0.18);
+    font-family:'Inter',sans-serif;
+  }
+  .tile:active{ cursor:grabbing; }
+  .tile .nick{ font-family:'Zilla Slab',serif; font-weight:700; font-size:14px; margin-bottom:2px; }
+  .tile .code{ font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--ink-soft); word-break:break-all; }
+  .tile .num{ position:absolute; top:6px; right:8px; font-size:10px; color:var(--ink-soft); font-family:'JetBrains Mono',monospace;}
+  .tile.done{ cursor:default; opacity:0.92; }
+  .tile.dragging{ opacity:0.4; }
+  .stamp{
+    position:absolute; bottom:4px; right:6px; font-family:'Zilla Slab',serif; font-weight:700;
+    font-size:10px; color:var(--paid-red); border:1.5px solid var(--paid-red); border-radius:3px;
+    padding:1px 5px; transform: rotate(-8deg); letter-spacing:0.5px; text-transform:uppercase;
+    background: rgba(163,53,42,0.06);
+  }
+  .tile-mark{
+    display:block; width:100%; margin-top:6px; font-size:10px; font-family:'Inter';
+    background:none; border:1px solid var(--deed-line); border-radius:4px; padding:3px 0;
+    cursor:pointer; color:var(--ink-soft);
+  }
+  .tile-mark:hover{ border-color:#2E6B3E; color:#2E6B3E; }
+
+  .lane{
+    background: rgba(0,0,0,0.15); border:1px solid var(--felt-line); border-radius:8px;
+    padding:14px 16px; margin-bottom:14px;
+  }
+  .lane-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .lane-head .name{ font-family:'Zilla Slab',serif; font-weight:700; font-size:15px; color:var(--deed); }
+  .lane-head .cap{ font-family:'JetBrains Mono',monospace; font-size:11px; color:rgba(244,237,216,0.5); }
+  .lane-head .cap.full{ color: var(--gold-bright); }
+  .slots{ display:flex; gap:10px; flex-wrap:wrap; }
+  .slot-empty{
+    width:118px; min-height:64px; border:1.5px dashed var(--felt-line); border-radius:6px;
+    display:flex; align-items:center; justify-content:center; color:rgba(244,237,216,0.25);
+    font-size:11px;
+  }
+  .slot-empty.dragover{ border-color:var(--gold); background:rgba(201,162,39,0.08); }
+
+  /* ---- Modal ---- */
+  .modal-back{
+    position:fixed; inset:0; background:rgba(10,15,10,0.55); display:none;
+    align-items:center; justify-content:center; z-index:50;
+  }
+  .modal-back.show{ display:flex; }
+  .modal{
+    background:var(--deed); color:var(--ink); border-radius:10px; padding:22px 24px;
+    width:300px; box-shadow:0 10px 30px rgba(0,0,0,0.4);
+  }
+  .modal h3{ font-family:'Zilla Slab',serif; margin:0 0 12px; font-size:17px;}
+  .modal .row{ margin-bottom:9px; font-size:13.5px; }
+  .modal .row span.k{ display:block; font-size:10px; text-transform:uppercase; color:var(--ink-soft); letter-spacing:0.5px; margin-bottom:2px;}
+  .modal .row span.v{ font-family:'JetBrains Mono',monospace; }
+  .modal-close{ margin-top:12px; width:100%; }
+
+  @media (max-width: 640px){
+    .grid2{ grid-template-columns:1fr; }
+    .subacct-row{ grid-template-columns:1fr 34px; }
+    .subacct-row input:nth-child(3){ grid-column: 1/2; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Partner Carry Board</h1>
+      <span class="stamp-mini">MoGo · Partners Event</span>
+    </div>
+    <nav class="tabs">
+      <button data-tab="signup" class="active">Sign Up</button>
+      <button data-tab="approve">Approve</button>
+      <button data-tab="board">Board</button>
+    </nav>
+  </header>
+
+  <div id="tab-signup" class="panel"></div>
+  <div id="tab-approve" class="panel" style="display:none;"></div>
+  <div id="tab-board" class="panel" style="display:none;"></div>
+</div>
+
+<div class="modal-back" id="modalBack">
+  <div class="modal" id="modalBody"></div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://yciryxlfojxyemvlmstj.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljaXJ5eGxmb2p4eWVtdmxtc3RqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNjAzNzgsImV4cCI6MjEwMDkzNjM3OH0.n34BsENXNkg3lGcu-_Dw-wtS7qgM9GBWR5dWglrzsns";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let adminChecked = false;
+let isAdmin = false;
+let currentDiscordId = null;
+let currentDiscordName = null;
+
+let state = { requests: [], subaccounts: [], carriers: [], tiles: [] };
+let signupRows = [{ nickname:"", code:"", needed:1 }];
+let draggingTileId = null;
+
+// ---------- data ----------
+async function loadAll(){
+  const [r1,r2,r3,r4] = await Promise.all([
+    sb.from('carry_requests').select('*').order('created_at',{ascending:true}),
+    sb.from('carry_subaccounts').select('*'),
+    sb.from('carrier_accounts').select('*').order('created_at',{ascending:true}),
+    sb.from('carry_tiles').select('*')
+  ]);
+  state.requests = r1.data || [];
+  state.subaccounts = r2.data || [];
+  state.carriers = r3.data || [];
+  state.tiles = r4.data || [];
+  renderActive();
+}
+
+function subsFor(reqId){ return state.subaccounts.filter(s=>s.request_id===reqId); }
+function tilesFor(subId){ return state.tiles.filter(t=>t.subaccount_id===subId).sort((a,b)=>a.tile_number-b.tile_number); }
+
+// ---------- tabs ----------
+document.querySelectorAll('nav.tabs button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    ['signup','approve','board'].forEach(t=>{
+      document.getElementById('tab-'+t).style.display = (t===btn.dataset.tab)?'block':'none';
+    });
+    renderActive(btn.dataset.tab);
+  });
+});
+function activeTab(){
+  const b = document.querySelector('nav.tabs button.active');
+  return b ? b.dataset.tab : 'signup';
+}
+function renderActive(tab){
+  tab = tab || activeTab();
+  if(tab==='signup') renderSignup();
+  if(tab==='approve') renderApprove();
+  if(tab==='board') renderBoard();
+}
+
+// ---------- SIGN UP ----------
+let currentUser = null;
+
+async function renderSignup(){
+  const el = document.getElementById('tab-signup');
+  const { data: { user } } = await sb.auth.getUser();
+  currentUser = user || null;
+
+  if(!currentUser){
+    el.innerHTML = `
+      <h2 class="section-title">Request a Carry</h2>
+      <p class="section-sub">Sign in with Discord first so we know exactly who to carry (and DM) later.</p>
+      <div style="text-align:center; padding:30px 0;">
+        <button class="btn btn-gold" id="discordLoginBtn">Sign in with Discord</button>
+      </div>
+    `;
+    document.getElementById('discordLoginBtn').onclick = ()=>{
+      sb.auth.signInWithOAuth({ provider:'discord', options:{ redirectTo: window.location.href } });
+    };
+    return;
+  }
+
+  const identity = (currentUser.identities||[]).find(i=>i.provider==='discord');
+  const discordId = identity?.id || currentUser.user_metadata?.provider_id || currentUser.user_metadata?.sub;
+  const discordName = currentUser.user_metadata?.full_name || currentUser.user_metadata?.name || 'Discord user';
+
+  el.innerHTML = `
+    <h2 class="section-title">Request a Carry</h2>
+    <p class="section-sub">List each of your accounts and how many carries it needs. Someone will approve your request before it's actioned.</p>
+    <div class="deed-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:14px; border-bottom:1px dashed var(--deed-line);">
+        <div><label style="margin:0;">Signed in as</label><div style="font-family:'Zilla Slab',serif; font-weight:700; font-size:16px;">${escapeHtml(discordName)}</div></div>
+        <button class="btn-add-row" id="signOutBtn">Sign out</button>
+      </div>
+      <label style="margin-top:6px;">Your Accounts</label>
+      <div id="subRows"></div>
+      <button class="btn-add-row" id="addRowBtn">+ Add another account</button>
+      <div class="form-actions">
+        <button class="btn btn-gold" id="submitBtn">Submit Request</button>
+        <span class="msg" id="signupMsg"></span>
+      </div>
+    </div>
+  `;
+  renderSubRows();
+  document.getElementById('addRowBtn').onclick = ()=>{
+    signupRows.push({nickname:"",code:"",needed:1});
+    renderSubRows();
+  };
+  document.getElementById('submitBtn').onclick = ()=>submitSignup(discordName, discordId);
+  document.getElementById('signOutBtn').onclick = async ()=>{ await sb.auth.signOut(); renderSignup(); };
+}
+
+function renderSubRows(){
+  const wrap = document.getElementById('subRows');
+  wrap.innerHTML = signupRows.map((row,i)=>`
+    <div class="subacct-row">
+      <div>
+        <label>Nickname</label>
+        <input type="text" value="${escapeAttr(row.nickname)}" data-i="${i}" data-f="nickname" class="rowField" placeholder="alpha">
+      </div>
+      <div>
+        <label>Friend Code</label>
+        <input type="text" value="${escapeAttr(row.code)}" data-i="${i}" data-f="code" class="rowField" placeholder="123-456-789">
+      </div>
+      <div>
+        <label>Needs</label>
+        <input type="number" min="1" max="20" value="${row.needed}" data-i="${i}" data-f="needed" class="rowField">
+      </div>
+      <button class="icon-btn" data-remove="${i}" title="Remove">&times;</button>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('.rowField').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const i = +e.target.dataset.i, f = e.target.dataset.f;
+      signupRows[i][f] = f==='needed' ? (parseInt(e.target.value)||1) : e.target.value;
+    });
+  });
+  wrap.querySelectorAll('[data-remove]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      if(signupRows.length<=1) return;
+      signupRows.splice(+b.dataset.remove,1);
+      renderSubRows();
+    });
+  });
+}
+
+async function submitSignup(discordName, discordId){
+  const msg = document.getElementById('signupMsg');
+  const rows = signupRows.filter(r=>r.nickname.trim() && r.code.trim() && r.needed>0);
+  if(!discordId || rows.length===0){
+    msg.textContent = "Add at least one account before submitting.";
+    msg.className = "msg err";
+    return;
+  }
+  msg.textContent = "Submitting...";
+  msg.className = "msg";
+  const { data: req, error: e1 } = await sb.from('carry_requests')
+    .insert({ requester_name:discordName, discord_contact:discordName, discord_id:discordId, status:'pending' })
+    .select().single();
+  if(e1){ msg.textContent = "Error: "+e1.message; msg.className="msg err"; return; }
+  const subRows = rows.map(r=>({ request_id:req.id, nickname:r.nickname.trim(), friend_code:r.code.trim(), carries_needed:r.needed }));
+  const { error: e2 } = await sb.from('carry_subaccounts').insert(subRows);
+  if(e2){ msg.textContent = "Error: "+e2.message; msg.className="msg err"; return; }
+  msg.textContent = "Request submitted! You'll be carried once it's approved.";
+  msg.className = "msg ok";
+  signupRows = [{nickname:"",code:"",needed:1}];
+  renderSubRows();
+  loadAll();
+}
+
+// ---------- ADMIN CHECK ----------
+async function checkAdmin(){
+  const { data: { user } } = await sb.auth.getUser();
+  currentUser = user || null;
+  if(!user){ isAdmin = false; currentDiscordId = null; currentDiscordName = null; adminChecked = true; return; }
+  const identity = (user.identities||[]).find(i=>i.provider==='discord');
+  currentDiscordId = identity?.id || user.user_metadata?.provider_id || user.user_metadata?.sub;
+  currentDiscordName = user.user_metadata?.full_name || user.user_metadata?.name || 'Discord user';
+  // keep a profile row so RLS policies (which join profiles -> admin_users) can see this user's discord_id
+  await sb.from('profiles').upsert({ id:user.id, discord_id:currentDiscordId, discord_name:currentDiscordName, updated_at:new Date().toISOString() });
+  const { data: adminRow } = await sb.from('admin_users').select('discord_id').eq('discord_id', currentDiscordId).maybeSingle();
+  isAdmin = !!adminRow;
+  adminChecked = true;
+}
+
+function renderAdminGate(container, retryFn){
+  if(!currentUser){
+    container.innerHTML = `
+      <div class="gate">
+        <h2 class="section-title" style="text-align:center;">Admin Access</h2>
+        <p class="section-sub" style="text-align:center;">Sign in with Discord to manage requests.</p>
+        <button class="btn btn-gold" id="adminLoginBtn" style="width:100%;">Sign in with Discord</button>
+      </div>
+    `;
+    document.getElementById('adminLoginBtn').onclick = ()=>{
+      sb.auth.signInWithOAuth({ provider:'discord', options:{ redirectTo: window.location.href } });
+    };
+    return;
+  }
+  container.innerHTML = `
+    <div class="gate">
+      <h2 class="section-title" style="text-align:center;">No Admin Access</h2>
+      <p class="section-sub" style="text-align:center;">${escapeHtml(currentDiscordName||'This account')} isn't on the admin list.</p>
+    </div>
+  `;
+}
+
+// ---------- APPROVE ----------
+async function renderApprove(){
+  const el = document.getElementById('tab-approve');
+  await checkAdmin();
+  if(!isAdmin){ renderAdminGate(el); return; }
+  const pending = state.requests.filter(r=>r.status==='pending');
+  const done = state.requests.filter(r=>r.status!=='pending').sort((a,b)=> new Date(b.created_at)-new Date(a.created_at));
+
+  el.innerHTML = `
+    <h2 class="section-title">Approve Requests</h2>
+    <p class="section-sub">Approving generates carry tiles for each account, ready to assign on the Board.</p>
+    <div id="pendingList"></div>
+    ${done.length ? '<h2 class="section-title" style="margin-top:22px;">History</h2><div id="doneList"></div>' : ''}
+  `;
+  const pendingList = document.getElementById('pendingList');
+  pendingList.innerHTML = pending.length ? pending.map(reqCardHtml).join('') : '<div class="empty-note">No pending requests.</div>';
+  pending.forEach(r=>{
+    const card = document.getElementById('req-'+r.id);
+    card.querySelector('.btn-approve')?.addEventListener('click', ()=>approveRequest(r.id));
+    card.querySelector('.btn-reject')?.addEventListener('click', ()=>rejectRequest(r.id));
+  });
+  if(done.length){
+    document.getElementById('doneList').innerHTML = done.map(reqCardHtml).join('');
+  }
+}
+
+function reqCardHtml(r){
+  const subs = subsFor(r.id);
+  return `
+    <div class="req-card" id="req-${r.id}">
+      <div class="req-head">
+        <div>
+          <div class="who">${escapeHtml(r.requester_name)}</div>
+          <div class="discord">${escapeHtml(r.discord_contact||'')}</div>
+        </div>
+        <span class="badge ${r.status}">${r.status}</span>
+      </div>
+      <div class="sub-list">
+        ${subs.map(s=>`<div class="sub-chip"><b>${escapeHtml(s.nickname)}</b> · ${escapeHtml(s.friend_code)} · needs ${s.carries_needed}</div>`).join('')}
+      </div>
+      ${r.status==='pending' ? `
+        <div class="req-actions">
+          <button class="btn btn-approve">Approve</button>
+          <button class="btn btn-reject">Reject</button>
+        </div>` : ''}
+    </div>
+  `;
+}
+
+async function approveRequest(reqId){
+  const subs = subsFor(reqId);
+  let tileRows = [];
+  subs.forEach(s=>{
+    for(let i=1;i<=s.carries_needed;i++){
+      tileRows.push({ subaccount_id:s.id, tile_number:i, status:'unassigned' });
+    }
+  });
+  if(tileRows.length){
+    const { error: e1 } = await sb.from('carry_tiles').insert(tileRows);
+    if(e1){ alert('Error creating tiles: '+e1.message); return; }
+  }
+  const { error: e2 } = await sb.from('carry_requests').update({status:'approved'}).eq('id', reqId);
+  if(e2){ alert('Error: '+e2.message); return; }
+  loadAll();
+}
+async function rejectRequest(reqId){
+  await sb.from('carry_requests').update({status:'rejected'}).eq('id', reqId);
+  loadAll();
+}
+
+// ---------- BOARD ----------
+async function renderBoard(){
+  const el = document.getElementById('tab-board');
+  await checkAdmin();
+  if(!isAdmin){ renderAdminGate(el); return; }
+
+  const unassigned = state.tiles.filter(t=>t.status==='unassigned');
+
+  el.innerHTML = `
+    <div class="board-top">
+      <div>
+        <h2 class="section-title" style="margin-bottom:2px;">Unassigned Tiles</h2>
+        <p class="section-sub" style="margin-bottom:0;">Drag a tile onto an open slot below. Click a tile to see who to message.</p>
+      </div>
+      <div class="add-carrier">
+        <input type="text" id="newCarrierName" placeholder="New carrier account name">
+        <button class="btn btn-gold" id="addCarrierBtn">+ Add</button>
+      </div>
+    </div>
+    <div class="pool" id="poolZone">
+      ${unassigned.length ? unassigned.map(t=>tileHtml(t)).join('') : '<div class="pool-empty">No unassigned tiles right now.</div>'}
+    </div>
+    <h2 class="section-title">Carrier Accounts</h2>
+    <div id="lanes"></div>
+  `;
+
+  document.getElementById('addCarrierBtn').onclick = async ()=>{
+    const name = document.getElementById('newCarrierName').value.trim();
+    if(!name) return;
+    await sb.from('carrier_accounts').insert({name, capacity:4});
+    loadAll();
+  };
+
+  const lanesEl = document.getElementById('lanes');
+  if(state.carriers.length===0){
+    lanesEl.innerHTML = '<div class="empty-note">Add a carrier account to start assigning tiles.</div>';
+  } else {
+    lanesEl.innerHTML = state.carriers.map(laneHtml).join('');
+  }
+
+  setupDragAndDrop();
+}
+
+function tileHtml(t){
+  const sub = state.subaccounts.find(s=>s.id===t.subaccount_id);
+  if(!sub) return '';
+  const draggable = t.status !== 'done';
+  return `
+    <div class="tile ${t.status==='done'?'done':''}" data-tile="${t.id}" draggable="${draggable}">
+      <span class="num">#${t.tile_number}</span>
+      <div class="nick">${escapeHtml(sub.nickname)}</div>
+      <div class="code">${escapeHtml(sub.friend_code)}</div>
+      ${t.status==='assigned' ? `
+        <button class="tile-mark" data-mark="${t.id}">Mark done</button>
+        <button class="tile-mark" data-notify="${t.id}" style="margin-top:4px;">Notify</button>
+      ` : ''}
+      ${t.status==='done' ? `<span class="stamp">Done</span>` : ''}
+    </div>
+  `;
+}
+
+function laneHtml(c){
+  const laneTiles = state.tiles.filter(t=>t.carrier_id===c.id);
+  const filled = laneTiles.length;
+  const full = filled >= c.capacity;
+  const openSlots = Math.max(0, c.capacity - filled);
+  let slotsHtml = laneTiles.map(t=>tileHtml(t)).join('');
+  for(let i=0;i<openSlots;i++){
+    slotsHtml += `<div class="slot-empty" data-lane="${c.id}">open</div>`;
+  }
+  return `
+    <div class="lane">
+      <div class="lane-head">
+        <span class="name">${escapeHtml(c.name)}</span>
+        <span class="cap ${full?'full':''}">${filled}/${c.capacity} ${full?'· FULL':''}</span>
+      </div>
+      <div class="slots" data-lanewrap="${c.id}">${slotsHtml}</div>
+    </div>
+  `;
+}
+
+function setupDragAndDrop(){
+  document.querySelectorAll('.tile[draggable="true"]').forEach(tile=>{
+    tile.addEventListener('dragstart', e=>{
+      draggingTileId = tile.dataset.tile;
+      tile.classList.add('dragging');
+    });
+    tile.addEventListener('dragend', ()=> tile.classList.remove('dragging'));
+    tile.addEventListener('click', (e)=>{
+      if(e.target.closest('[data-mark]')) return;
+      showTileInfo(tile.dataset.tile);
+    });
+  });
+  document.querySelectorAll('[data-mark]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      markDone(btn.dataset.mark);
+    });
+  });
+  document.querySelectorAll('[data-notify]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      notifyTile(btn.dataset.notify, btn);
+    });
+  });
+
+  // pool as drop target (unassign)
+  const pool = document.getElementById('poolZone');
+  pool.addEventListener('dragover', e=>{ e.preventDefault(); pool.classList.add('dragover'); });
+  pool.addEventListener('dragleave', ()=> pool.classList.remove('dragover'));
+  pool.addEventListener('drop', async e=>{
+    e.preventDefault(); pool.classList.remove('dragover');
+    if(draggingTileId) await unassignTile(draggingTileId);
+    draggingTileId = null;
+  });
+
+  // empty slots as drop targets (assign)
+  document.querySelectorAll('.slot-empty').forEach(slot=>{
+    slot.addEventListener('dragover', e=>{ e.preventDefault(); slot.classList.add('dragover'); });
+    slot.addEventListener('dragleave', ()=> slot.classList.remove('dragover'));
+    slot.addEventListener('drop', async e=>{
+      e.preventDefault(); slot.classList.remove('dragover');
+      if(draggingTileId) await assignTile(draggingTileId, slot.dataset.lane);
+      draggingTileId = null;
+    });
+  });
+
+  // assigned (non-done) tiles inside a lane also act as drop zones to swap back? keep simple: dropping on lane wrap area not needed.
+}
+
+async function assignTile(tileId, carrierId){
+  const carrier = state.carriers.find(c=>c.id===carrierId);
+  const currentCount = state.tiles.filter(t=>t.carrier_id===carrierId).length;
+  if(carrier && currentCount >= carrier.capacity){ return; }
+  await sb.from('carry_tiles').update({carrier_id:carrierId, status:'assigned'}).eq('id', tileId);
+  loadAll();
+}
+async function unassignTile(tileId){
+  const t = state.tiles.find(x=>x.id===tileId);
+  if(!t || t.status==='done') return;
+  await sb.from('carry_tiles').update({carrier_id:null, status:'unassigned'}).eq('id', tileId);
+  loadAll();
+}
+async function markDone(tileId){
+  await sb.from('carry_tiles').update({status:'done'}).eq('id', tileId);
+  loadAll();
+}
+async function notifyTile(tileId, btn){
+  const original = btn.textContent;
+  btn.textContent = 'Sending...';
+  btn.disabled = true;
+  const { data, error } = await sb.functions.invoke('send-carry-dm', {
+    body: { tileId }
+  });
+  if(error || data?.error){
+    btn.textContent = 'Failed';
+    console.error(error || data.error);
+  } else {
+    btn.textContent = 'Sent!';
+  }
+  setTimeout(()=>{ btn.textContent = original; btn.disabled = false; }, 1800);
+}
+
+function showTileInfo(tileId){
+  const t = state.tiles.find(x=>x.id===tileId);
+  if(!t) return;
+  const sub = state.subaccounts.find(s=>s.id===t.subaccount_id);
+  const req = sub ? state.requests.find(r=>r.id===sub.request_id) : null;
+  document.getElementById('modalBody').innerHTML = `
+    <h3>${escapeHtml(sub?.nickname||'')}</h3>
+    <div class="row"><span class="k">Friend Code</span><span class="v">${escapeHtml(sub?.friend_code||'')}</span></div>
+    <div class="row"><span class="k">Requested By</span><span class="v" style="font-family:'Inter';">${escapeHtml(req?.requester_name||'')}</span></div>
+    <div class="row"><span class="k">Discord</span><span class="v">${escapeHtml(req?.discord_contact||'')}</span></div>
+    <div class="row"><span class="k">Status</span><span class="v" style="font-family:'Inter';">${t.status}</span></div>
+    <button class="btn btn-ghost modal-close" id="closeModal">Close</button>
+  `;
+  document.getElementById('modalBack').classList.add('show');
+  document.getElementById('closeModal').onclick = ()=> document.getElementById('modalBack').classList.remove('show');
+}
+document.getElementById('modalBack').addEventListener('click', e=>{
+  if(e.target.id==='modalBack') e.currentTarget.classList.remove('show');
+});
+
+// ---------- utils ----------
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeAttr(s){ return escapeHtml(s); }
+
+loadAll();
+setInterval(loadAll, 15000); // light polling so approvals/assignments stay in sync across devices
+</script>
+</body>
+</html>
