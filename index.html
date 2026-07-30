@@ -146,6 +146,7 @@
   .badge.pending{ background:#EADFAF; color:#7A5B00; }
   .badge.approved{ background:#D3E7D6; color:#215A2D; }
   .badge.rejected{ background:#F0D4CE; color:#8A2E1D; }
+  .badge.cancelled{ background:#E4DCE8; color:#5B3A6E; }
   .sub-list{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
   .sub-chip{
     font-family:'JetBrains Mono',monospace; font-size:12px; background:#FBF8EE;
@@ -194,6 +195,11 @@
   .tile .nick{ font-family:'Zilla Slab',serif; font-weight:700; font-size:14px; margin-bottom:2px; }
   .tile .code{ font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--ink-soft); word-break:break-all; }
   .tile .num{ position:absolute; top:6px; right:8px; font-size:10px; color:var(--ink-soft); font-family:'JetBrains Mono',monospace;}
+  .tile-del{
+    position:absolute; top:4px; left:6px; background:none; border:none; color:var(--ink-soft);
+    font-size:15px; line-height:1; cursor:pointer; padding:2px 4px; border-radius:3px;
+  }
+  .tile-del:hover{ color:var(--brick); background:rgba(181,72,46,0.1); }
   .tile.done{ cursor:default; opacity:0.92; }
   .tile.dragging{ opacity:0.4; }
   .stamp{
@@ -519,6 +525,10 @@ async function renderApprove(){
   });
   if(done.length){
     document.getElementById('doneList').innerHTML = done.map(reqCardHtml).join('');
+    done.filter(r=>r.status==='approved').forEach(r=>{
+      const card = document.getElementById('req-'+r.id);
+      card.querySelector('.btn-cancel')?.addEventListener('click', ()=>cancelRequest(r.id));
+    });
   }
 }
 
@@ -540,6 +550,10 @@ function reqCardHtml(r){
         <div class="req-actions">
           <button class="btn btn-approve">Approve</button>
           <button class="btn btn-reject">Reject</button>
+        </div>` : ''}
+      ${r.status==='approved' ? `
+        <div class="req-actions">
+          <button class="btn btn-danger btn-cancel">Cancel Request</button>
         </div>` : ''}
     </div>
   `;
@@ -563,6 +577,16 @@ async function approveRequest(reqId){
 }
 async function rejectRequest(reqId){
   await sb.from('carry_requests').update({status:'rejected'}).eq('id', reqId);
+  loadAll();
+}
+async function cancelRequest(reqId){
+  const ok = confirm("Cancel this request? Any tiles not yet completed will be removed from the board — they'll no longer be sitting unassigned or assigned anywhere. Already-completed carries stay on record.");
+  if(!ok) return;
+  const subIds = subsFor(reqId).map(s=>s.id);
+  if(subIds.length){
+    await sb.from('carry_tiles').delete().in('subaccount_id', subIds).neq('status','done');
+  }
+  await sb.from('carry_requests').update({status:'cancelled'}).eq('id', reqId);
   loadAll();
 }
 
@@ -633,6 +657,7 @@ function tileHtml(t){
   return `
     <div class="tile ${t.status==='done'?'done':''}" data-tile="${t.id}" draggable="${draggable}">
       <span class="num">#${t.tile_number}</span>
+      ${t.status!=='done' ? `<button class="tile-del" data-del-tile="${t.id}" title="Delete this tile">&times;</button>` : ''}
       <div class="nick">${escapeHtml(sub.nickname)}</div>
       <div class="code">${escapeHtml(sub.friend_code)}</div>
       ${t.status==='assigned' ? `
@@ -689,6 +714,12 @@ function setupDragAndDrop(){
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
       notifyTile(btn.dataset.notify, btn);
+    });
+  });
+  document.querySelectorAll('[data-del-tile]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      deleteTile(btn.dataset.delTile);
     });
   });
 
@@ -770,6 +801,14 @@ async function unassignTile(tileId){
   const t = state.tiles.find(x=>x.id===tileId);
   if(!t || t.status==='done') return;
   await sb.from('carry_tiles').update({carrier_id:null, status:'unassigned'}).eq('id', tileId);
+  loadAll();
+}
+async function deleteTile(tileId){
+  const t = state.tiles.find(x=>x.id===tileId);
+  if(!t || t.status==='done') return;
+  const sub = state.subaccounts.find(s=>s.id===t.subaccount_id);
+  if(!confirm(`Delete this tile for ${sub?.nickname || 'this account'}? This can't be undone.`)) return;
+  await sb.from('carry_tiles').delete().eq('id', tileId);
   loadAll();
 }
 async function markDone(tileId){
