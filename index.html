@@ -112,7 +112,7 @@
   .hour-cell .cap{ display:block; font-size:9.5px; opacity:0.75; margin-top:2px; }
 
   /* schedule tab (admin) */
-  .avail-grid{ display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-bottom:8px; }
+  .avail-grid{ display:grid; grid-template-columns:repeat(8,1fr); gap:6px; margin-bottom:8px; }
   .avail-cell{ border-radius:6px; padding:8px 2px; text-align:center; font-size:11px; font-family:'JetBrains Mono',monospace; border:1px solid var(--felt-line); cursor:pointer; color:rgba(244,237,216,0.55); }
   .avail-cell.on{ background: var(--gold); color:#2B2205; border-color:var(--gold); font-weight:700; }
   .avail-cell:hover{ border-color:var(--gold-bright); }
@@ -196,9 +196,16 @@ function addDaysToDateStr(dateStr, n){
   return dt.toISOString().slice(0,10);
 }
 // Given a PHT calendar date + PHT hour, return the real UTC Date instant (PHT has no DST, fixed +8)
-function phtSlotToDate(dateStr, hour){
+function phtSlotToDate(dateStr, slot){
   const [y,m,d] = dateStr.split('-').map(Number);
-  return new Date(Date.UTC(y, m-1, d, hour-8, 0, 0));
+  const hour = Math.floor(slot/2), minute = (slot%2)*30;
+  return new Date(Date.UTC(y, m-1, d, hour-8, minute, 0));
+}
+function formatSlotLabel(slot){
+  const hour = Math.floor(slot/2), minute = (slot%2)*30;
+  const period = hour < 12 ? 'am' : 'pm';
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${hour12}:${String(minute).padStart(2,'0')}${period}`;
 }
 function formatInViewerTz(dateObj, tz){
   try{
@@ -218,14 +225,14 @@ async function loadAll(){
     await sb.from('bookings').delete().eq('status','held').lt('hold_expires_at', new Date().toISOString());
 
     const [dhRes, bRes, hmRes] = await Promise.all([
-      sb.from('date_hours').select('booking_date, hour'),
+      sb.from('date_hours').select('booking_date, slot'),
       sb.from('bookings').select('*').neq('status','cancelled'),
       sb.from('app_settings').select('value').eq('key','hold_minutes').maybeSingle()
     ]);
     state.dateHours = new Map(); // dateStr -> Set(hour)
     (dhRes.data||[]).forEach(r=>{
       if(!state.dateHours.has(r.booking_date)) state.dateHours.set(r.booking_date, new Set());
-      state.dateHours.get(r.booking_date).add(r.hour);
+      state.dateHours.get(r.booking_date).add(r.slot);
     });
     const today = todayPHTDateStr();
     state.configuredDates = [...state.dateHours.keys()].filter(d=>d>=today && state.dateHours.get(d).size>0).sort();
@@ -237,10 +244,6 @@ async function loadAll(){
     console.error('loadAll failed', e);
     return false;
   }
-}
-
-function capacityFor(dateStr, hour){
-  return state.bookings.filter(b=>b.booking_date===dateStr && b.booking_hour===hour).length;
 }
 
 // ---------- tabs ----------
@@ -370,7 +373,7 @@ async function renderSignup(){
       return `<div class="acct-card"><div class="acct-top">
         <div><span class="nm">${escapeHtml(sub?.nickname||'?')}</span> <span class="code">${escapeHtml(sub?.friend_code||'')}</span></div>
         <span class="status-tag ${b.status}" style="color:var(--ink);">${b.status}</span>
-      </div><div class="booked-list">${formatInViewerTz(phtSlotToDate(b.booking_date,b.booking_hour), tz)}</div></div>`;
+      </div><div class="booked-list">${formatInViewerTz(phtSlotToDate(b.booking_date,b.slot), tz)}</div></div>`;
     }).join('');
   }
 }
@@ -385,7 +388,7 @@ function renderDayTabs(){
   const days = state.configuredDates || [];
   if(!days.length){ wrap.innerHTML = '<div class="empty-note">No dates open for booking yet — check back soon.</div>'; return; }
   wrap.innerHTML = days.map(d=>{
-    const dt = phtSlotToDate(d, 12);
+    const dt = phtSlotToDate(d, 24);
     const label = dt.toLocaleDateString(undefined, {timeZone:tz, weekday:'short'});
     const num = dt.toLocaleDateString(undefined, {timeZone:tz, month:'short', day:'numeric'});
     return `<div class="day-tab ${d===bookingModalSelectedDate?'active':''}" data-day="${d}"><span class="dow">${label}</span>${num}</div>`;
@@ -403,36 +406,51 @@ function renderHourGrid(){
   if(!grid) return;
   if(!bookingModalSelectedDate){ grid.innerHTML = ''; return; }
   const tz = viewerTz();
-  const hoursForDay = state.dateHours.get(bookingModalSelectedDate) || new Set();
+  const slotsForDay = state.dateHours.get(bookingModalSelectedDate) || new Set();
   const cells = [];
-  for(let h=0; h<24; h++){
-    if(!hoursForDay.has(h)) continue;
-    const dateObj = phtSlotToDate(bookingModalSelectedDate, h);
-    const cap = capacityFor(bookingModalSelectedDate, h);
+  for(let s=0; s<48; s++){
+    if(!slotsForDay.has(s)) continue;
+    const dateObj = phtSlotToDate(bookingModalSelectedDate, s);
+    const cap = capacityFor(bookingModalSelectedDate, s);
     const full = cap >= SLOT_CAPACITY;
     const label = dateObj.toLocaleTimeString(undefined, {timeZone:tz, hour:'numeric', minute:'2-digit'});
-    cells.push(`<div class="hour-cell ${full?'full':'open'}" data-hour="${h}" data-date="${bookingModalSelectedDate}">${label}<span class="cap">${cap}/${SLOT_CAPACITY}</span></div>`);
+    cells.push(`<div class="hour-cell ${full?'full':'open'}" data-slot="${s}" data-date="${bookingModalSelectedDate}">${label}<span class="cap">${cap}/${SLOT_CAPACITY}</span></div>`);
   }
-  grid.innerHTML = cells.length ? cells.join('') : '<div class="empty-note">No available hours set up yet.</div>';
+  grid.innerHTML = cells.length ? cells.join('') : '<div class="empty-note">No available times set up yet.</div>';
   grid.querySelectorAll('.hour-cell.open').forEach(cell=>{
-    cell.addEventListener('click', ()=>openSeatPicker(cell.dataset.date, +cell.dataset.hour));
+    cell.addEventListener('click', ()=>openSeatPicker(cell.dataset.date, +cell.dataset.slot));
   });
 }
 // bookings capacity now excludes expired holds automatically via loadAll filtering server-side status
-function capacityFor(dateStr, hour){
-  return state.bookings.filter(b=>b.booking_date===dateStr && b.booking_hour===hour && b.status!=='cancelled').length;
+function capacityFor(dateStr, slot){
+  return state.bookings.filter(b=>b.booking_date===dateStr && b.slot===slot && b.status!=='cancelled').length;
 }
 
 // ---------- SEAT PICKER -> HOLD -> FORM ----------
 let heldRows = [];
 let holdTimerInterval = null;
 
-function openSeatPicker(dateStr, hour){
-  const remaining = SLOT_CAPACITY - capacityFor(dateStr, hour);
+function openSeatPicker(dateStr, slot){
+  const remaining = SLOT_CAPACITY - capacityFor(dateStr, slot);
   if(remaining <= 0) return;
   const tz = viewerTz();
-  const label = formatInViewerTz(phtSlotToDate(dateStr, hour), tz);
+  const label = formatInViewerTz(phtSlotToDate(dateStr, slot), tz);
   const body = document.getElementById('bookModalBody');
+
+  const alreadyHasSlot = state.myRequest && state.bookings.some(b=>
+    b.request_id === state.myRequest.id && b.booking_date === dateStr && b.slot === slot && b.status !== 'cancelled'
+  );
+  if(alreadyHasSlot){
+    body.innerHTML = `
+      <h3>Already booked</h3>
+      <p class="hint">${escapeHtml(label)} — you already have a booking in this exact slot. Pick a different time.</p>
+      <button class="btn btn-ghost modal-close" id="closeSeatPicker">Close</button>
+    `;
+    document.getElementById('bookModalBack').classList.add('show');
+    document.getElementById('closeSeatPicker').onclick = ()=> document.getElementById('bookModalBack').classList.remove('show');
+    return;
+  }
+
   const options = [];
   for(let n=1; n<=Math.min(4, remaining); n++) options.push(n);
   body.innerHTML = `
@@ -445,21 +463,25 @@ function openSeatPicker(dateStr, hour){
   `;
   document.getElementById('bookModalBack').classList.add('show');
   body.querySelectorAll('[data-seats]').forEach(btn=>{
-    btn.addEventListener('click', ()=>holdSeats(dateStr, hour, +btn.dataset.seats));
+    btn.addEventListener('click', ()=>holdSeats(dateStr, slot, +btn.dataset.seats));
   });
   document.getElementById('closeSeatPicker').onclick = ()=> document.getElementById('bookModalBack').classList.remove('show');
 }
 
-async function holdSeats(dateStr, hour, count){
+async function holdSeats(dateStr, slot, count){
   const reqId = state.myRequest?.id;
   if(!reqId) return;
   const hm = state.holdMinutes || 7;
   const { data, error } = await sb.rpc('hold_slot', {
-    p_request_id: reqId, p_date: dateStr, p_hour: hour, p_count: count, p_capacity: SLOT_CAPACITY, p_hold_minutes: hm
+    p_request_id: reqId, p_date: dateStr, p_slot: slot, p_count: count, p_capacity: SLOT_CAPACITY, p_hold_minutes: hm
   });
   if(error){
     if((error.message||'').includes('slot_full')){
       alert("Not enough seats left in that slot — someone just grabbed them. Pick another.");
+    } else if((error.message||'').includes('already_booked')){
+      alert("You already have a booking in this exact slot — pick a different time.");
+    } else if((error.message||'').includes('hour_not_available')){
+      alert("That time isn't open for booking anymore. Pick another.");
     } else {
       alert('Could not hold that slot: '+error.message);
     }
@@ -482,7 +504,7 @@ function renderAccountForm(){
     if(!seen.has(key)){ seen.add(key); saved.push(s); }
   });
   const tz = viewerTz();
-  const label = formatInViewerTz(phtSlotToDate(heldRows[0].booking_date, heldRows[0].booking_hour), tz);
+  const label = formatInViewerTz(phtSlotToDate(heldRows[0].booking_date, heldRows[0].slot), tz);
 
   body.innerHTML = `
     <h3>Who's being carried?</h3>
@@ -608,7 +630,7 @@ async function renderSchedule(){
   const [rRes, sRes, bRes] = await Promise.all([
     sb.from('carry_requests').select('*'),
     sb.from('carry_subaccounts').select('*'),
-    sb.from('bookings').select('*').order('booking_date',{ascending:true}).order('booking_hour',{ascending:true})
+    sb.from('bookings').select('*').order('booking_date',{ascending:true}).order('slot',{ascending:true})
   ]);
   state.adminRequests = rRes.data || [];
   state.adminSubaccounts = sRes.data || [];
@@ -673,7 +695,7 @@ function renderConfiguredDateChips(){
   const dates = [...state.dateHours.keys()].filter(d=>state.dateHours.get(d).size>0).sort();
   if(!dates.length){ wrap.innerHTML = '<span style="font-size:12px; color:rgba(244,237,216,0.4);">No dates configured yet.</span>'; return; }
   wrap.innerHTML = dates.map(d=>{
-    const dt = phtSlotToDate(d, 12);
+    const dt = phtSlotToDate(d, 24);
     const label = dt.toLocaleDateString(undefined, {timeZone:ADMIN_TZ, month:'short', day:'numeric'});
     return `<button class="btn-add-row" data-jump="${d}" style="padding:5px 10px; font-size:11.5px; ${d===adminSelectedDate?'background:var(--gold); color:#2B2205; border-color:var(--gold);':''}">${label}</button>`;
   }).join('');
@@ -689,26 +711,25 @@ function renderConfiguredDateChips(){
 
 function renderAvailGrid(){
   const wrap = document.getElementById('availGridWrap');
-  const dt = phtSlotToDate(adminSelectedDate, 12);
+  const dt = phtSlotToDate(adminSelectedDate, 24);
   const label = dt.toLocaleDateString(undefined, {timeZone:ADMIN_TZ, weekday:'long', month:'short', day:'numeric'});
   wrap.innerHTML = `<p style="font-family:'Zilla Slab',serif; color:var(--gold-bright); margin:0 0 8px;">${label}</p><div class="avail-grid" id="availGrid"></div>`;
   const grid = document.getElementById('availGrid');
-  const hoursForDay = state.dateHours.get(adminSelectedDate) || new Set();
+  const slotsForDay = state.dateHours.get(adminSelectedDate) || new Set();
   let html = '';
-  for(let h=0; h<24; h++){
-    const on = hoursForDay.has(h);
-    const label2 = h===0?'12am':h<12?h+'am':h===12?'12pm':(h-12)+'pm';
-    html += `<div class="avail-cell ${on?'on':''}" data-hour="${h}">${label2}</div>`;
+  for(let s=0; s<48; s++){
+    const on = slotsForDay.has(s);
+    html += `<div class="avail-cell ${on?'on':''}" data-slot="${s}">${formatSlotLabel(s)}</div>`;
   }
   grid.innerHTML = html;
   grid.querySelectorAll('.avail-cell').forEach(cell=>{
     cell.addEventListener('click', async ()=>{
-      const h = +cell.dataset.hour;
-      const currentlyOn = (state.dateHours.get(adminSelectedDate) || new Set()).has(h);
+      const s = +cell.dataset.slot;
+      const currentlyOn = (state.dateHours.get(adminSelectedDate) || new Set()).has(s);
       if(currentlyOn){
-        await sb.from('date_hours').delete().eq('booking_date', adminSelectedDate).eq('hour', h);
+        await sb.from('date_hours').delete().eq('booking_date', adminSelectedDate).eq('slot', s);
       } else {
-        await sb.from('date_hours').insert({ booking_date: adminSelectedDate, hour:h });
+        await sb.from('date_hours').insert({ booking_date: adminSelectedDate, slot:s });
       }
       await loadAll();
       renderConfiguredDateChips();
@@ -725,12 +746,12 @@ function renderBookingsList(allBookings){
   const dates = Object.keys(byDate).sort();
 
   wrap.innerHTML = dates.map(d=>{
-    const dt = phtSlotToDate(d, 12);
+    const dt = phtSlotToDate(d, 24);
     const label = dt.toLocaleDateString(undefined, {timeZone:ADMIN_TZ, weekday:'long', month:'short', day:'numeric'});
     const rows = byDate[d].map(b=>{
       const sub = state.adminSubaccounts.find(s=>s.id===b.subaccount_id);
       const req = sub ? state.adminRequests.find(r=>r.id===sub.request_id) : null;
-      const hourLabel = phtSlotToDate(d, b.booking_hour).toLocaleTimeString(undefined, {timeZone:ADMIN_TZ, hour:'numeric', minute:'2-digit'});
+      const hourLabel = phtSlotToDate(d, b.slot).toLocaleTimeString(undefined, {timeZone:ADMIN_TZ, hour:'numeric', minute:'2-digit'});
       return `
         <div class="booking-row" data-booking="${b.id}">
           <div class="info">
@@ -868,7 +889,11 @@ async function initialLoad(){
 document.getElementById('loadingRetry').addEventListener('click', initialLoad);
 
 initialLoad();
-setInterval(loadAll, 15000);
+setInterval(()=>{
+  const active = document.activeElement;
+  if(active && active.id === 'adminDateInput') return; // don't yank the field out from under an open calendar picker
+  loadAll();
+}, 15000);
 </script>
 </body>
 </html>
