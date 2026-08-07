@@ -183,6 +183,7 @@ let state = { availableHours: new Set(), bookings: [], myRequest: null, mySubacc
 let currentUser = null, isAdmin = false, currentDiscordId = null, currentDiscordName = null;
 let signupRows = [{nickname:"",code:"",needed:1}];
 let bookingModalSelectedDate = null;
+let adminSelectedDate = null;
 
 // ---------- date/time helpers ----------
 function todayPHTDateStr(){
@@ -216,15 +217,19 @@ async function loadAll(){
     // opportunistically clear any stale (expired) holds so capacity stays accurate for everyone
     await sb.from('bookings').delete().eq('status','held').lt('hold_expires_at', new Date().toISOString());
 
-    const [hRes, bRes, wRes, hmRes] = await Promise.all([
-      sb.from('available_hours').select('hour'),
+    const [dhRes, bRes, hmRes] = await Promise.all([
+      sb.from('date_hours').select('booking_date, hour'),
       sb.from('bookings').select('*').neq('status','cancelled'),
-      sb.from('app_settings').select('value').eq('key','booking_days_window').maybeSingle(),
       sb.from('app_settings').select('value').eq('key','hold_minutes').maybeSingle()
     ]);
-    state.availableHours = new Set((hRes.data||[]).map(r=>r.hour));
+    state.dateHours = new Map(); // dateStr -> Set(hour)
+    (dhRes.data||[]).forEach(r=>{
+      if(!state.dateHours.has(r.booking_date)) state.dateHours.set(r.booking_date, new Set());
+      state.dateHours.get(r.booking_date).add(r.hour);
+    });
+    const today = todayPHTDateStr();
+    state.configuredDates = [...state.dateHours.keys()].filter(d=>d>=today && state.dateHours.get(d).size>0).sort();
     state.bookings = bRes.data || [];
-    state.bookingDaysWindow = parseInt(wRes.data?.value) || 5;
     state.holdMinutes = parseInt(hmRes.data?.value) || 7;
     renderActive();
     return true;
@@ -331,9 +336,8 @@ async function renderSignup(){
   }
 
   const tz = viewerTz();
-  const days = [];
-  for(let i=0;i<(state.bookingDaysWindow||5);i++) days.push(addDaysToDateStr(todayPHTDateStr(), i));
-  if(!bookingModalSelectedDate) bookingModalSelectedDate = days[0];
+  const days = state.configuredDates || [];
+  if(!bookingModalSelectedDate || !days.includes(bookingModalSelectedDate)) bookingModalSelectedDate = days[0] || null;
 
   const myBookings = state.bookings.filter(b=>b.request_id===reqRow?.id && b.status!=='held');
 
@@ -345,14 +349,7 @@ async function renderSignup(){
       <select id="reqTimezone">${timezoneOptionsHtml(state.myRequest?.timezone)}</select>
     </div>
     <p class="section-sub" style="margin-top:-10px;">Pick a time below. Times shown in your zone (${escapeHtml(tz)}).</p>
-    <div class="day-tabs" id="dayTabs">
-      ${days.map(d=>{
-        const dt = phtSlotToDate(d, 12);
-        const label = dt.toLocaleDateString(undefined, {timeZone:tz, weekday:'short'});
-        const num = dt.toLocaleDateString(undefined, {timeZone:tz, month:'short', day:'numeric'});
-        return `<div class="day-tab ${d===bookingModalSelectedDate?'active':''}" data-day="${d}"><span class="dow">${label}</span>${num}</div>`;
-      }).join('')}
-    </div>
+    <div class="day-tabs" id="dayTabs"></div>
     <div class="hour-grid" id="hourGrid"></div>
     ${myBookings.length ? `
       <h2 class="section-title" style="margin-top:26px;">Your Bookings</h2>
@@ -363,9 +360,7 @@ async function renderSignup(){
   document.getElementById('reqTimezone').onchange = async (e)=>{
     if(state.myRequest) await sb.from('carry_requests').update({ timezone:e.target.value }).eq('id', state.myRequest.id);
   };
-  document.querySelectorAll('#dayTabs .day-tab').forEach(tab=>{
-    tab.addEventListener('click', ()=>{ bookingModalSelectedDate = tab.dataset.day; renderHourGrid(); });
-  });
+  renderDayTabs();
   renderHourGrid();
 
   if(myBookings.length){
@@ -382,14 +377,36 @@ async function renderSignup(){
 
 function isValidFriendCode(code){ return /^MGO[A-Z0-9]{9}$/.test(code); }
 
-// ---------- HOUR GRID (Sign Up tab) ----------
+// ---------- DAY TABS + HOUR GRID (Sign Up tab) ----------
+function renderDayTabs(){
+  const wrap = document.getElementById('dayTabs');
+  if(!wrap) return;
+  const tz = viewerTz();
+  const days = state.configuredDates || [];
+  if(!days.length){ wrap.innerHTML = '<div class="empty-note">No dates open for booking yet — check back soon.</div>'; return; }
+  wrap.innerHTML = days.map(d=>{
+    const dt = phtSlotToDate(d, 12);
+    const label = dt.toLocaleDateString(undefined, {timeZone:tz, weekday:'short'});
+    const num = dt.toLocaleDateString(undefined, {timeZone:tz, month:'short', day:'numeric'});
+    return `<div class="day-tab ${d===bookingModalSelectedDate?'active':''}" data-day="${d}"><span class="dow">${label}</span>${num}</div>`;
+  }).join('');
+  wrap.querySelectorAll('.day-tab').forEach(tab=>{
+    tab.addEventListener('click', ()=>{
+      bookingModalSelectedDate = tab.dataset.day;
+      renderDayTabs();
+      renderHourGrid();
+    });
+  });
+}
 function renderHourGrid(){
   const grid = document.getElementById('hourGrid');
   if(!grid) return;
+  if(!bookingModalSelectedDate){ grid.innerHTML = ''; return; }
   const tz = viewerTz();
+  const hoursForDay = state.dateHours.get(bookingModalSelectedDate) || new Set();
   const cells = [];
   for(let h=0; h<24; h++){
-    if(!state.availableHours.has(h)) continue;
+    if(!hoursForDay.has(h)) continue;
     const dateObj = phtSlotToDate(bookingModalSelectedDate, h);
     const cap = capacityFor(bookingModalSelectedDate, h);
     const full = cap >= SLOT_CAPACITY;
@@ -598,20 +615,14 @@ async function renderSchedule(){
   const allBookings = (bRes.data || []).filter(b=>b.status!=='held');
 
   el.innerHTML = `
-    <h2 class="section-title">Hour Availability <span style="font-size:11px; color:rgba(244,237,216,0.4); font-family:'Inter';">(PHT, recurring daily)</span></h2>
-    <p class="section-sub">Click hours on or off. Requesters can only book hours marked here.</p>
-    <div class="avail-grid" id="availGrid"></div>
-
-    <div class="msg-template">
-      <label>Booking Window</label>
-      <p class="hint">How many days out people can book, starting from today (PHT).</p>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <input type="number" id="daysWindowInput" min="1" max="30" style="width:80px;" value="${state.bookingDaysWindow||5}">
-        <span style="font-size:12.5px; color:rgba(244,237,216,0.5);">days</span>
-        <button class="btn btn-gold btn-sm" id="saveDaysBtn">Save</button>
-        <span class="msg" id="daysSaveStatus"></span>
-      </div>
+    <h2 class="section-title">Date &amp; Hour Availability <span style="font-size:11px; color:rgba(244,237,216,0.4); font-family:'Inter';">(PHT)</span></h2>
+    <p class="section-sub">Pick a date, then click hours on or off for that specific day. Each date is independent.</p>
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+      <input type="date" id="adminDateInput" style="width:auto;">
+      <button class="btn btn-gold btn-sm" id="jumpDateBtn">Configure This Date</button>
     </div>
+    <div id="configuredDateChips" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;"></div>
+    <div id="availGridWrap"></div>
 
     <div class="msg-template">
       <label>Seat Hold Time</label>
@@ -641,33 +652,66 @@ async function renderSchedule(){
     <div id="bookingsList"></div>
   `;
 
+  if(!adminSelectedDate) adminSelectedDate = (state.configuredDates && state.configuredDates[0]) || todayPHTDateStr();
+  document.getElementById('adminDateInput').value = adminSelectedDate;
+  document.getElementById('jumpDateBtn').onclick = ()=>{
+    adminSelectedDate = document.getElementById('adminDateInput').value || adminSelectedDate;
+    renderConfiguredDateChips();
+    renderAvailGrid();
+  };
+  renderConfiguredDateChips();
   renderAvailGrid();
   loadNotifyMessage();
   document.getElementById('saveMsgBtn').onclick = saveNotifyMessage;
-  document.getElementById('saveDaysBtn').onclick = saveDaysWindow;
   document.getElementById('saveHoldBtn').onclick = saveHoldMinutes;
   document.getElementById('resetBoardBtn').onclick = resetBoard;
   renderBookingsList(allBookings);
 }
 
+function renderConfiguredDateChips(){
+  const wrap = document.getElementById('configuredDateChips');
+  const dates = [...state.dateHours.keys()].filter(d=>state.dateHours.get(d).size>0).sort();
+  if(!dates.length){ wrap.innerHTML = '<span style="font-size:12px; color:rgba(244,237,216,0.4);">No dates configured yet.</span>'; return; }
+  wrap.innerHTML = dates.map(d=>{
+    const dt = phtSlotToDate(d, 12);
+    const label = dt.toLocaleDateString(undefined, {timeZone:ADMIN_TZ, month:'short', day:'numeric'});
+    return `<button class="btn-add-row" data-jump="${d}" style="padding:5px 10px; font-size:11.5px; ${d===adminSelectedDate?'background:var(--gold); color:#2B2205; border-color:var(--gold);':''}">${label}</button>`;
+  }).join('');
+  wrap.querySelectorAll('[data-jump]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      adminSelectedDate = btn.dataset.jump;
+      document.getElementById('adminDateInput').value = adminSelectedDate;
+      renderConfiguredDateChips();
+      renderAvailGrid();
+    });
+  });
+}
+
 function renderAvailGrid(){
+  const wrap = document.getElementById('availGridWrap');
+  const dt = phtSlotToDate(adminSelectedDate, 12);
+  const label = dt.toLocaleDateString(undefined, {timeZone:ADMIN_TZ, weekday:'long', month:'short', day:'numeric'});
+  wrap.innerHTML = `<p style="font-family:'Zilla Slab',serif; color:var(--gold-bright); margin:0 0 8px;">${label}</p><div class="avail-grid" id="availGrid"></div>`;
   const grid = document.getElementById('availGrid');
+  const hoursForDay = state.dateHours.get(adminSelectedDate) || new Set();
   let html = '';
   for(let h=0; h<24; h++){
-    const on = state.availableHours.has(h);
-    const label = h===0?'12am':h<12?h+'am':h===12?'12pm':(h-12)+'pm';
-    html += `<div class="avail-cell ${on?'on':''}" data-hour="${h}">${label}</div>`;
+    const on = hoursForDay.has(h);
+    const label2 = h===0?'12am':h<12?h+'am':h===12?'12pm':(h-12)+'pm';
+    html += `<div class="avail-cell ${on?'on':''}" data-hour="${h}">${label2}</div>`;
   }
   grid.innerHTML = html;
   grid.querySelectorAll('.avail-cell').forEach(cell=>{
     cell.addEventListener('click', async ()=>{
       const h = +cell.dataset.hour;
-      if(state.availableHours.has(h)){
-        await sb.from('available_hours').delete().eq('hour', h);
+      const currentlyOn = (state.dateHours.get(adminSelectedDate) || new Set()).has(h);
+      if(currentlyOn){
+        await sb.from('date_hours').delete().eq('booking_date', adminSelectedDate).eq('hour', h);
       } else {
-        await sb.from('available_hours').insert({ hour:h });
+        await sb.from('date_hours').insert({ booking_date: adminSelectedDate, hour:h });
       }
       await loadAll();
+      renderConfiguredDateChips();
       renderAvailGrid();
     });
   });
@@ -768,16 +812,6 @@ async function saveNotifyMessage(){
   const { error } = await sb.from('app_settings').update({ value, updated_at:new Date().toISOString() }).eq('key','notify_message');
   status.textContent = error ? 'Error: '+error.message : 'Saved!';
   status.className = error ? 'msg err' : 'msg ok';
-  setTimeout(()=>{ status.textContent=''; }, 2000);
-}
-async function saveDaysWindow(){
-  const status = document.getElementById('daysSaveStatus');
-  const value = parseInt(document.getElementById('daysWindowInput').value);
-  if(!value || value < 1){ status.textContent='Enter at least 1 day.'; status.className='msg err'; return; }
-  const { error } = await sb.from('app_settings').update({ value:String(value), updated_at:new Date().toISOString() }).eq('key','booking_days_window');
-  status.textContent = error ? 'Error: '+error.message : 'Saved!';
-  status.className = error ? 'msg err' : 'msg ok';
-  state.bookingDaysWindow = value;
   setTimeout(()=>{ status.textContent=''; }, 2000);
 }
 async function saveHoldMinutes(){
