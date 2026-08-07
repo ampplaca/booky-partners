@@ -9,252 +9,146 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
   :root{
-    --felt:#1F3D2B;
-    --felt-deep:#142A1D;
-    --felt-line: rgba(244,237,216,0.12);
-    --deed:#F4EDD8;
-    --deed-line:#C9BD98;
-    --gold:#C9A227;
-    --gold-bright:#E4C550;
-    --brick:#B5482E;
-    --ink:#22301D;
-    --ink-soft:#5B6650;
-    --paid-red:#A3352A;
+    --felt:#1F3D2B; --felt-deep:#142A1D; --felt-line: rgba(244,237,216,0.12);
+    --deed:#F4EDD8; --deed-line:#C9BD98; --gold:#C9A227; --gold-bright:#E4C550;
+    --brick:#B5482E; --ink:#22301D; --ink-soft:#5B6650; --paid-red:#A3352A;
+    --green:#2E6B3E; --green-bright:#3D8A51;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
-    background:
-      radial-gradient(circle at 20% 10%, rgba(244,237,216,0.05), transparent 40%),
-      var(--felt);
-    background-attachment: fixed;
-    color: var(--deed);
-    font-family: 'Inter', sans-serif;
-    min-height:100vh;
+    background: radial-gradient(circle at 20% 10%, rgba(244,237,216,0.05), transparent 40%), var(--felt);
+    background-attachment: fixed; color: var(--deed); font-family: 'Inter', sans-serif; min-height:100vh;
   }
-  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px;}
+  .wrap{max-width:1100px;margin:0 auto;padding:28px 20px 80px;}
 
-  header.top{
-    display:flex; align-items:center; justify-content:space-between;
-    margin-bottom:24px; flex-wrap:wrap; gap:14px;
+  .loading-overlay{
+    position:fixed; inset:0; background: var(--felt); z-index:999;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;
+    transition: opacity .35s ease; opacity:1;
   }
+  .loading-overlay.hide{ opacity:0; pointer-events:none; }
+  .spinner{ width:34px; height:34px; border-radius:50%; border:3px solid rgba(244,237,216,0.18); border-top-color: var(--gold); animation: spin 0.8s linear infinite; }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+  .loading-text{ font-family:'Zilla Slab', serif; font-size:15px; color: rgba(244,237,216,0.7); text-align:center; max-width:320px; }
+  .loading-retry{ margin-top:4px; }
+
+  header.top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; flex-wrap:wrap; gap:14px; }
   .brand{display:flex; align-items:baseline; gap:10px;}
-  .brand h1{
-    font-family:'Zilla Slab', serif; font-weight:700; font-size:28px;
-    margin:0; color:var(--deed); letter-spacing:0.3px;
-  }
-  .brand .stamp-mini{
-    font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--gold-bright);
-    border:1px solid var(--gold); border-radius:3px; padding:2px 7px; letter-spacing:1px;
-    text-transform:uppercase;
-  }
-
+  .brand h1{ font-family:'Zilla Slab', serif; font-weight:700; font-size:28px; margin:0; color:var(--deed); letter-spacing:0.3px; }
+  .brand .stamp-mini{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--gold-bright); border:1px solid var(--gold); border-radius:3px; padding:2px 7px; letter-spacing:1px; text-transform:uppercase; }
   nav.tabs{display:flex; gap:6px;}
-  nav.tabs button{
-    font-family:'Zilla Slab', serif; font-weight:600; font-size:15px;
-    background:transparent; border:1px solid var(--felt-line); color: rgba(244,237,216,0.65);
-    padding:9px 18px; border-radius:6px 6px 0 0; cursor:pointer;
-    transition: all .15s ease;
-  }
+  nav.tabs button{ font-family:'Zilla Slab', serif; font-weight:600; font-size:15px; background:transparent; border:1px solid var(--felt-line); color: rgba(244,237,216,0.65); padding:9px 18px; border-radius:6px 6px 0 0; cursor:pointer; transition: all .15s ease; }
   nav.tabs button:hover{ color:var(--deed); border-color: var(--deed-line); }
-  nav.tabs button.active{
-    background:var(--deed); color:var(--felt-deep); border-color:var(--deed);
-  }
+  nav.tabs button.active{ background:var(--deed); color:var(--felt-deep); border-color:var(--deed); }
 
-  .panel{
-    background: var(--felt-deep);
-    border:1px solid var(--felt-line);
-    border-radius: 10px;
-    padding: 26px;
-  }
-
-  h2.section-title{
-    font-family:'Zilla Slab', serif; font-size:20px; margin:0 0 4px;
-    color: var(--gold-bright);
-  }
+  .panel{ background: var(--felt-deep); border:1px solid var(--felt-line); border-radius: 10px; padding: 26px; }
+  h2.section-title{ font-family:'Zilla Slab', serif; font-size:20px; margin:0 0 4px; color: var(--gold-bright); }
   p.section-sub{ margin:0 0 20px; color:rgba(244,237,216,0.55); font-size:13.5px; }
 
-  /* ---- Deed card form styling ---- */
-  .deed-card{
-    background: var(--deed); color: var(--ink); border-radius: 8px;
-    padding: 20px; border: 1px solid var(--deed-line);
-    box-shadow: 0 3px 0 rgba(0,0,0,0.15);
-  }
-  label{
-    display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;
-    color: var(--ink-soft); margin-bottom:5px; font-weight:600;
-  }
-  input[type=text], input[type=number], select{
-    width:100%; padding:9px 10px; border:1px solid var(--deed-line); border-radius:5px;
-    background:#FBF8EE; color:var(--ink); font-family:'Inter',sans-serif; font-size:14px;
-  }
-  input:focus{ outline:2px solid var(--gold); outline-offset:1px; }
+  .deed-card{ background: var(--deed); color: var(--ink); border-radius: 8px; padding: 20px; border: 1px solid var(--deed-line); box-shadow: 0 3px 0 rgba(0,0,0,0.15); margin-bottom:22px; }
+  label{ display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.6px; color: var(--ink-soft); margin-bottom:5px; font-weight:600; }
+  input[type=text], input[type=number], select, textarea{ width:100%; padding:9px 10px; border:1px solid var(--deed-line); border-radius:5px; background:#FBF8EE; color:var(--ink); font-family:'Inter',sans-serif; font-size:14px; }
+  input:focus, select:focus, textarea:focus{ outline:2px solid var(--gold); outline-offset:1px; }
   .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .field{ margin-bottom:14px; }
 
-  .subacct-row{
-    display:grid; grid-template-columns: 1fr 1fr 90px 34px; gap:10px;
-    align-items:end; margin-bottom:10px; padding-bottom:10px;
-    border-bottom: 1px dashed var(--deed-line);
-  }
+  .subacct-row{ display:grid; grid-template-columns: 1fr 1fr 80px 34px; gap:10px; align-items:end; margin-bottom:6px; padding-bottom:10px; border-bottom: 1px dashed var(--deed-line); }
   .subacct-row:last-of-type{ border-bottom:none; }
-  .code-hint{ font-size:10.5px; color:var(--brick); min-height:13px; margin-top:3px; }
-  .icon-btn{
-    background:none; border:1px solid var(--deed-line); border-radius:5px; color:var(--brick);
-    height:36px; cursor:pointer; font-size:16px; line-height:1;
-  }
+  .code-hint{ font-size:10.5px; color:var(--brick); min-height:13px; margin-top:3px; grid-column:2; }
+  .icon-btn{ background:none; border:1px solid var(--deed-line); border-radius:5px; color:var(--brick); height:36px; cursor:pointer; font-size:16px; line-height:1; }
   .icon-btn:hover{ background: rgba(181,72,46,0.08); }
-.lane-head .icon-btn{
-  border-color: rgba(244,237,216,0.25); color:#E38068; height:26px; width:26px;
-  padding:0; font-size:15px; background:transparent;
-}
-.lane-head .icon-btn:hover{ border-color:var(--brick); background:rgba(181,72,46,0.15); }
 
-  .btn{
-    font-family:'Zilla Slab',serif; font-weight:600; font-size:14.5px;
-    padding:10px 20px; border-radius:6px; border:none; cursor:pointer;
-    transition: transform .1s ease;
-  }
+  .btn{ font-family:'Zilla Slab',serif; font-weight:600; font-size:14.5px; padding:10px 20px; border-radius:6px; border:none; cursor:pointer; transition: transform .1s ease; }
   .btn:active{ transform: translateY(1px); }
   .btn-gold{ background: var(--gold); color:#2B2205; }
   .btn-gold:hover{ background: var(--gold-bright); }
   .btn-ghost{ background:transparent; border:1px solid var(--deed-line); color:var(--ink); }
-  .btn-add-row{
-    background:none; border:1px dashed var(--deed-line); color:var(--ink-soft);
-    padding:8px 14px; border-radius:6px; cursor:pointer; font-size:13px; font-family:'Inter';
-  }
+  .btn-danger{ background: var(--brick); color:#fff; }
+  .btn-danger:hover{ background:#C1573B; }
+  .btn-add-row{ background:none; border:1px dashed var(--deed-line); color:var(--ink-soft); padding:8px 14px; border-radius:6px; cursor:pointer; font-size:13px; font-family:'Inter'; }
   .btn-add-row:hover{ border-color:var(--ink-soft); color:var(--ink); }
+  .btn-sm{ padding:6px 12px; font-size:12.5px; border-radius:5px; }
 
-  .form-actions{ margin-top:18px; display:flex; align-items:center; gap:14px; }
+  .form-actions{ margin-top:14px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
   .msg{ font-size:13.5px; }
   .msg.ok{ color:#2E6B3E; }
   .msg.err{ color:var(--brick); }
 
-  /* ---- Passcode gate ---- */
   .gate{ max-width:340px; margin: 40px auto; text-align:center; }
-  .gate input{ text-align:center; letter-spacing:3px; }
 
-  /* ---- Approve tab ---- */
-  .req-card{
-    background: var(--deed); color:var(--ink); border-radius:8px; padding:16px 18px;
-    margin-bottom:14px; border:1px solid var(--deed-line);
-  }
-  .req-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
-  .req-head .who{ font-family:'Zilla Slab',serif; font-weight:700; font-size:16px; }
-  .req-head .discord{ font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft); }
-  .badge{ font-size:10px; text-transform:uppercase; letter-spacing:0.5px; padding:3px 9px; border-radius:20px; font-weight:700; }
-  .badge.pending{ background:#EADFAF; color:#7A5B00; }
-  .badge.approved{ background:#D3E7D6; color:#215A2D; }
-  .badge.rejected{ background:#F0D4CE; color:#8A2E1D; }
-  .badge.cancelled{ background:#E4DCE8; color:#5B3A6E; }
-  .sub-list{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
-  .sub-chip{
-    font-family:'JetBrains Mono',monospace; font-size:12px; background:#FBF8EE;
-    border:1px solid var(--deed-line); border-radius:5px; padding:6px 10px;
-  }
-  .sub-chip b{ font-family:'Inter',sans-serif; font-weight:700; color:var(--ink); }
-  .req-actions{ display:flex; gap:10px; }
-  .btn-approve{ background:#2E6B3E; color:#fff; }
-  .btn-approve:hover{ background:#357C47; }
-  .btn-reject{ background:transparent; border:1px solid var(--brick); color:var(--brick); }
-  .btn-reject:hover{ background: rgba(181,72,46,0.08); }
-.btn-danger{ background: var(--brick); color:#fff; }
-.btn-danger:hover{ background:#C1573B; }
-  .empty-note{ color:rgba(244,237,216,0.45); font-size:13.5px; padding:10px 0; }
+  /* saved account cards */
+  .acct-card{ background:var(--deed); color:var(--ink); border-radius:8px; padding:14px 16px; margin-bottom:10px; border:1px solid var(--deed-line); }
+  .acct-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .acct-top .nm{ font-family:'Zilla Slab',serif; font-weight:700; font-size:15px; }
+  .acct-top .code{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-soft); }
+  .progress-track{ height:6px; background:#E4DBC0; border-radius:4px; overflow:hidden; margin:6px 0 10px; }
+  .progress-fill{ height:100%; background:var(--green); }
+  .acct-bottom{ display:flex; justify-content:space-between; align-items:center; }
+  .booked-list{ font-size:11.5px; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; }
 
-  /* ---- Board tab ---- */
-  .board-top{ display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:16px; flex-wrap:wrap; gap:12px;}
-  .add-carrier{ display:flex; gap:8px; }
-  .add-carrier input{ width:170px; }
-
-  .pool{
-    background: rgba(244,237,216,0.05); border:1px dashed var(--felt-line); border-radius:8px;
-    padding:14px; margin-bottom:24px; min-height:70px;
-    display:flex; flex-wrap:wrap; gap:10px; align-content:flex-start;
-  }
-  .pool.dragover{ border-color: var(--gold); background: rgba(201,162,39,0.07); }
-  .pool-empty{ color:rgba(244,237,216,0.35); font-size:13px; font-style:italic; padding:6px 4px; }
-
-  .msg-template{
-    background: rgba(244,237,216,0.05); border:1px solid var(--felt-line); border-radius:8px;
-    padding:14px 16px; margin-bottom:20px;
-  }
-  .msg-template textarea{
-    width:100%; min-height:64px; padding:9px 10px; border:1px solid var(--deed-line); border-radius:5px;
-    background:#FBF8EE; color:var(--ink); font-family:'Inter',sans-serif; font-size:13.5px; resize:vertical;
-  }
-  .msg-template .hint{ color:rgba(244,237,216,0.45); font-size:11.5px; margin:6px 0 10px; }
-
-  .tile{
-    width:118px; min-height:64px; background: var(--deed); color:var(--ink);
-    border-radius:6px; border:1px solid var(--deed-line); padding:8px 9px;
-    cursor:grab; position:relative; box-shadow:0 2px 0 rgba(0,0,0,0.18);
-    font-family:'Inter',sans-serif;
-  }
-  .tile:active{ cursor:grabbing; }
-  .tile .nick{ font-family:'Zilla Slab',serif; font-weight:700; font-size:14px; margin-bottom:2px; }
-  .tile .code{ font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--ink-soft); word-break:break-all; }
-  .tile .num{ position:absolute; top:6px; right:8px; font-size:10px; color:var(--ink-soft); font-family:'JetBrains Mono',monospace;}
-  .tile-del{
-    position:absolute; top:4px; left:6px; background:none; border:none; color:var(--ink-soft);
-    font-size:15px; line-height:1; cursor:pointer; padding:2px 4px; border-radius:3px;
-  }
-  .tile-del:hover{ color:var(--brick); background:rgba(181,72,46,0.1); }
-  .tile.done{ cursor:default; opacity:0.92; }
-  .tile.dragging{ opacity:0.4; }
-  .stamp{
-    position:absolute; bottom:4px; right:6px; font-family:'Zilla Slab',serif; font-weight:700;
-    font-size:10px; color:var(--paid-red); border:1.5px solid var(--paid-red); border-radius:3px;
-    padding:1px 5px; transform: rotate(-8deg); letter-spacing:0.5px; text-transform:uppercase;
-    background: rgba(163,53,42,0.06);
-  }
-  .tile-mark{
-    display:block; width:100%; margin-top:6px; font-size:10px; font-family:'Inter';
-    background:none; border:1px solid var(--deed-line); border-radius:4px; padding:3px 0;
-    cursor:pointer; color:var(--ink-soft);
-  }
-  .tile-mark:hover{ border-color:#2E6B3E; color:#2E6B3E; }
-
-  .lane{
-    background: rgba(0,0,0,0.15); border:1px solid var(--felt-line); border-radius:8px;
-    padding:14px 16px; margin-bottom:14px;
-  }
-  .lane-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
-  .lane-head .name{ font-family:'Zilla Slab',serif; font-weight:700; font-size:15px; color:var(--deed); }
-  .lane-head .cap{ font-family:'JetBrains Mono',monospace; font-size:11px; color:rgba(244,237,216,0.5); }
-  .lane-head .cap.full{ color: var(--gold-bright); }
-  .slots{ display:flex; gap:10px; flex-wrap:wrap; }
-  .slot-empty{
-    width:118px; min-height:64px; border:1.5px dashed var(--felt-line); border-radius:6px;
-    display:flex; align-items:center; justify-content:center; color:rgba(244,237,216,0.25);
-    font-size:11px;
-  }
-  .slot-empty.dragover{ border-color:var(--gold); background:rgba(201,162,39,0.08); }
-
-  /* ---- Modal ---- */
-  .modal-back{
-    position:fixed; inset:0; background:rgba(10,15,10,0.55); display:none;
-    align-items:center; justify-content:center; z-index:50;
-  }
+  /* booking modal / calendar */
+  .modal-back{ position:fixed; inset:0; background:rgba(10,15,10,0.6); display:none; align-items:center; justify-content:center; z-index:60; padding:16px; }
   .modal-back.show{ display:flex; }
-  .modal{
-    background:var(--deed); color:var(--ink); border-radius:10px; padding:22px 24px;
-    width:300px; box-shadow:0 10px 30px rgba(0,0,0,0.4);
-  }
-  .modal h3{ font-family:'Zilla Slab',serif; margin:0 0 12px; font-size:17px;}
+  .modal{ background:var(--deed); color:var(--ink); border-radius:10px; padding:22px 24px; width:100%; max-width:420px; max-height:88vh; overflow-y:auto; box-shadow:0 10px 30px rgba(0,0,0,0.4); }
+  .modal h3{ font-family:'Zilla Slab',serif; margin:0 0 4px; font-size:18px;}
+  .modal p.hint{ margin:0 0 14px; font-size:12px; color:var(--ink-soft); }
   .modal .row{ margin-bottom:9px; font-size:13.5px; }
   .modal .row span.k{ display:block; font-size:10px; text-transform:uppercase; color:var(--ink-soft); letter-spacing:0.5px; margin-bottom:2px;}
   .modal .row span.v{ font-family:'JetBrains Mono',monospace; }
-  .modal-close{ margin-top:12px; width:100%; }
+  .modal-close{ margin-top:14px; width:100%; }
+
+  .day-tabs{ display:flex; gap:6px; overflow-x:auto; padding-bottom:8px; margin-bottom:12px; }
+  .day-tab{ flex:0 0 auto; background:#FBF8EE; border:1px solid var(--deed-line); border-radius:6px; padding:8px 12px; font-size:12px; font-family:'Inter'; cursor:pointer; text-align:center; color:var(--ink); }
+  .day-tab.active{ background:var(--green); color:#fff; border-color:var(--green); }
+  .day-tab .dow{ font-weight:700; display:block; }
+
+  .hour-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .hour-cell{ border-radius:6px; padding:8px 4px; text-align:center; font-size:11.5px; font-family:'JetBrains Mono',monospace; border:1px solid var(--deed-line); cursor:default; }
+  .hour-cell.unavailable{ background:#EEE8D6; color:#B7AC85; cursor:not-allowed; }
+  .hour-cell.open{ background:#DCEEE0; color:var(--green); cursor:pointer; font-weight:700; }
+  .hour-cell.open:hover{ background:#C7E5CD; }
+  .hour-cell.full{ background:#F3D9D2; color:var(--brick); cursor:not-allowed; }
+  .hour-cell .cap{ display:block; font-size:9.5px; opacity:0.75; margin-top:2px; }
+
+  /* schedule tab (admin) */
+  .avail-grid{ display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-bottom:8px; }
+  .avail-cell{ border-radius:6px; padding:8px 2px; text-align:center; font-size:11px; font-family:'JetBrains Mono',monospace; border:1px solid var(--felt-line); cursor:pointer; color:rgba(244,237,216,0.55); }
+  .avail-cell.on{ background: var(--gold); color:#2B2205; border-color:var(--gold); font-weight:700; }
+  .avail-cell:hover{ border-color:var(--gold-bright); }
+
+  .day-group{ margin-bottom:18px; }
+  .day-group h3{ font-family:'Zilla Slab',serif; font-size:15px; color:var(--gold-bright); margin:0 0 8px; }
+  .booking-row{ background: rgba(244,237,216,0.05); border:1px solid var(--felt-line); border-radius:8px; padding:12px 14px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+  .booking-row .info{ font-size:13px; }
+  .booking-row .info b{ font-family:'Zilla Slab',serif; font-size:14.5px; }
+  .booking-row .meta{ color:rgba(244,237,216,0.5); font-size:11.5px; font-family:'JetBrains Mono',monospace; margin-top:2px; }
+  .booking-row .actions{ display:flex; gap:6px; flex-wrap:wrap; }
+  .status-tag{ font-size:10px; text-transform:uppercase; letter-spacing:0.5px; padding:3px 8px; border-radius:20px; font-weight:700; }
+  .status-tag.booked{ background:#EADFAF; color:#7A5B00; }
+  .status-tag.done{ background:#D3E7D6; color:#215A2D; }
+  .empty-note{ color:rgba(244,237,216,0.45); font-size:13.5px; padding:10px 0; }
+
+  .msg-template{ background: rgba(244,237,216,0.05); border:1px solid var(--felt-line); border-radius:8px; padding:14px 16px; margin-bottom:24px; }
+  .msg-template textarea{ min-height:64px; resize:vertical; font-size:13.5px; }
+  .msg-template .hint{ color:rgba(244,237,216,0.45); font-size:11.5px; margin:6px 0 10px; }
 
   @media (max-width: 640px){
     .grid2{ grid-template-columns:1fr; }
     .subacct-row{ grid-template-columns:1fr 34px; }
-    .subacct-row input:nth-child(3){ grid-column: 1/2; }
+    .subacct-row input:nth-child(2){ grid-column: 1/2; }
+    .code-hint{ grid-column:1; }
+    .hour-grid{ grid-template-columns:repeat(3,1fr); }
+    .avail-grid{ grid-template-columns:repeat(4,1fr); }
   }
 </style>
 </head>
 <body>
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Loading the board...</div>
+  <button class="btn btn-gold loading-retry" id="loadingRetry" style="display:none;">Retry</button>
+</div>
 <div class="wrap">
   <header class="top">
     <div class="brand">
@@ -263,18 +157,18 @@
     </div>
     <nav class="tabs">
       <button data-tab="signup" class="active">Sign Up</button>
-      <button data-tab="approve">Approve</button>
-      <button data-tab="board">Board</button>
+      <button data-tab="schedule">Schedule</button>
     </nav>
   </header>
-
   <div id="tab-signup" class="panel"></div>
-  <div id="tab-approve" class="panel" style="display:none;"></div>
-  <div id="tab-board" class="panel" style="display:none;"></div>
+  <div id="tab-schedule" class="panel" style="display:none;"></div>
 </div>
 
-<div class="modal-back" id="modalBack">
-  <div class="modal" id="modalBody"></div>
+<div class="modal-back" id="bookModalBack">
+  <div class="modal" id="bookModalBody"></div>
+</div>
+<div class="modal-back" id="infoModalBack">
+  <div class="modal" id="infoModalBody"></div>
 </div>
 
 <script>
@@ -282,39 +176,74 @@ const SUPABASE_URL = "https://yciryxlfojxyemvlmstj.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljaXJ5eGxmb2p4eWVtdmxtc3RqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNjAzNzgsImV4cCI6MjEwMDkzNjM3OH0.n34BsENXNkg3lGcu-_Dw-wtS7qgM9GBWR5dWglrzsns";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-let adminChecked = false;
-let isAdmin = false;
-let currentDiscordId = null;
-let currentDiscordName = null;
+const SLOT_CAPACITY = 4;
+const ADMIN_TZ = 'Asia/Manila'; // PHT — fixed UTC+8, no DST
 
-let state = { requests: [], subaccounts: [], carriers: [], tiles: [] };
-let signupRows = [{ nickname:"", code:"", needed:1 }];
-let draggingTileId = null;
+let state = { availableHours: new Set(), bookings: [], myRequest: null, mySubaccounts: [], adminSubaccounts: [], adminRequests: [] };
+let currentUser = null, isAdmin = false, currentDiscordId = null, currentDiscordName = null;
+let signupRows = [{nickname:"",code:"",needed:1}];
+let bookingModalSelectedDate = null;
+
+// ---------- date/time helpers ----------
+function todayPHTDateStr(){
+  return new Date().toLocaleDateString('en-CA', { timeZone: ADMIN_TZ });
+}
+function addDaysToDateStr(dateStr, n){
+  const [y,m,d] = dateStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m-1, d));
+  dt.setUTCDate(dt.getUTCDate()+n);
+  return dt.toISOString().slice(0,10);
+}
+// Given a PHT calendar date + PHT hour, return the real UTC Date instant (PHT has no DST, fixed +8)
+function phtSlotToDate(dateStr, hour){
+  const [y,m,d] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m-1, d, hour-8, 0, 0));
+}
+function formatInViewerTz(dateObj, tz){
+  try{
+    return dateObj.toLocaleString(undefined, { timeZone: tz || undefined, weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+  } catch(e){
+    return dateObj.toLocaleString();
+  }
+}
+function viewerTz(){
+  try{ return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch(e){ return 'UTC'; }
+}
 
 // ---------- data ----------
 async function loadAll(){
-  const [r1,r2,r3,r4] = await Promise.all([
-    sb.from('carry_requests').select('*').order('created_at',{ascending:true}),
-    sb.from('carry_subaccounts').select('*'),
-    sb.from('carrier_accounts').select('*').order('created_at',{ascending:true}),
-    sb.from('carry_tiles').select('*')
-  ]);
-  state.requests = r1.data || [];
-  state.subaccounts = r2.data || [];
-  state.carriers = r3.data || [];
-  state.tiles = r4.data || [];
-  renderActive();
+  try{
+    // opportunistically clear any stale (expired) holds so capacity stays accurate for everyone
+    await sb.from('bookings').delete().eq('status','held').lt('hold_expires_at', new Date().toISOString());
+
+    const [hRes, bRes, wRes, hmRes] = await Promise.all([
+      sb.from('available_hours').select('hour'),
+      sb.from('bookings').select('*').neq('status','cancelled'),
+      sb.from('app_settings').select('value').eq('key','booking_days_window').maybeSingle(),
+      sb.from('app_settings').select('value').eq('key','hold_minutes').maybeSingle()
+    ]);
+    state.availableHours = new Set((hRes.data||[]).map(r=>r.hour));
+    state.bookings = bRes.data || [];
+    state.bookingDaysWindow = parseInt(wRes.data?.value) || 5;
+    state.holdMinutes = parseInt(hmRes.data?.value) || 7;
+    renderActive();
+    return true;
+  } catch(e){
+    console.error('loadAll failed', e);
+    return false;
+  }
 }
 
-function subsFor(reqId){ return state.subaccounts.filter(s=>s.request_id===reqId); }
-function tilesFor(subId){ return state.tiles.filter(t=>t.subaccount_id===subId).sort((a,b)=>a.tile_number-b.tile_number); }
+function capacityFor(dateStr, hour){
+  return state.bookings.filter(b=>b.booking_date===dateStr && b.booking_hour===hour).length;
+}
 
 // ---------- tabs ----------
 document.querySelectorAll('nav.tabs button').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    ['signup','approve','board'].forEach(t=>{
+    ['signup','schedule'].forEach(t=>{
       document.getElementById('tab-'+t).style.display = (t===btn.dataset.tab)?'block':'none';
     });
     renderActive(btn.dataset.tab);
@@ -327,13 +256,43 @@ function activeTab(){
 function renderActive(tab){
   tab = tab || activeTab();
   if(tab==='signup') renderSignup();
-  if(tab==='approve') renderApprove();
-  if(tab==='board') renderBoard();
+  if(tab==='schedule') renderSchedule();
+}
+
+// ---------- ADMIN CHECK ----------
+async function checkAdmin(){
+  const { data: { user } } = await sb.auth.getUser();
+  currentUser = user || null;
+  if(!user){ isAdmin=false; currentDiscordId=null; currentDiscordName=null; return; }
+  const identity = (user.identities||[]).find(i=>i.provider==='discord');
+  currentDiscordId = identity?.id || user.user_metadata?.provider_id || user.user_metadata?.sub;
+  currentDiscordName = user.user_metadata?.full_name || user.user_metadata?.name || 'Discord user';
+  await sb.from('profiles').upsert({ id:user.id, discord_id:currentDiscordId, discord_name:currentDiscordName, updated_at:new Date().toISOString() });
+  const { data: adminRow } = await sb.from('admin_users').select('discord_id').eq('discord_id', currentDiscordId).maybeSingle();
+  isAdmin = !!adminRow;
+}
+
+function renderAdminGate(container){
+  if(!currentUser){
+    container.innerHTML = `
+      <div class="gate">
+        <h2 class="section-title" style="text-align:center;">Admin Access</h2>
+        <p class="section-sub" style="text-align:center;">Sign in with Discord to manage the schedule.</p>
+        <button class="btn btn-gold" id="adminLoginBtn" style="width:100%;">Sign in with Discord</button>
+      </div>`;
+    document.getElementById('adminLoginBtn').onclick = ()=>{
+      sb.auth.signInWithOAuth({ provider:'discord', options:{ redirectTo: window.location.href } });
+    };
+    return;
+  }
+  container.innerHTML = `
+    <div class="gate">
+      <h2 class="section-title" style="text-align:center;">No Admin Access</h2>
+      <p class="section-sub" style="text-align:center;">${escapeHtml(currentDiscordName||'This account')} isn't on the admin list.</p>
+    </div>`;
 }
 
 // ---------- SIGN UP ----------
-let currentUser = null;
-
 async function renderSignup(){
   const el = document.getElementById('tab-signup');
   const { data: { user } } = await sb.auth.getUser();
@@ -345,8 +304,7 @@ async function renderSignup(){
       <p class="section-sub">Sign in with Discord first so we know exactly who to carry (and DM) later.</p>
       <div style="text-align:center; padding:30px 0;">
         <button class="btn btn-gold" id="discordLoginBtn">Sign in with Discord</button>
-      </div>
-    `;
+      </div>`;
     document.getElementById('discordLoginBtn').onclick = ()=>{
       sb.auth.signInWithOAuth({ provider:'discord', options:{ redirectTo: window.location.href } });
     };
@@ -356,418 +314,446 @@ async function renderSignup(){
   const identity = (currentUser.identities||[]).find(i=>i.provider==='discord');
   const discordId = identity?.id || currentUser.user_metadata?.provider_id || currentUser.user_metadata?.sub;
   const discordName = currentUser.user_metadata?.full_name || currentUser.user_metadata?.name || 'Discord user';
+  await sb.from('profiles').upsert({ id:currentUser.id, discord_id:discordId, discord_name:discordName, updated_at:new Date().toISOString() });
+
+  // ensure this user has a request row immediately (accounts are now added inline when booking)
+  let { data: reqRow } = await sb.from('carry_requests').select('*').eq('discord_id', discordId).maybeSingle();
+  if(!reqRow){
+    const { data: created } = await sb.from('carry_requests')
+      .insert({ requester_name:discordName, discord_contact:discordName, discord_id:discordId, status:'approved', timezone:viewerTz() })
+      .select().single();
+    reqRow = created;
+  }
+  state.myRequest = reqRow || null;
+  if(reqRow){
+    const { data: subs } = await sb.from('carry_subaccounts').select('*').eq('request_id', reqRow.id);
+    state.mySubaccounts = subs || [];
+  }
+
+  const tz = viewerTz();
+  const days = [];
+  for(let i=0;i<(state.bookingDaysWindow||5);i++) days.push(addDaysToDateStr(todayPHTDateStr(), i));
+  if(!bookingModalSelectedDate) bookingModalSelectedDate = days[0];
+
+  const myBookings = state.bookings.filter(b=>b.request_id===reqRow?.id && b.status!=='held');
 
   el.innerHTML = `
-    <h2 class="section-title">Request a Carry</h2>
-    <p class="section-sub">List each of your accounts and how many carries it needs. Someone will approve your request before it's actioned.</p>
+    <h2 class="section-title">Book a Carry</h2>
+    <p class="section-sub">Signed in as <b>${escapeHtml(discordName)}</b> · <button class="btn-add-row" id="signOutBtn" style="padding:2px 8px; font-size:11px;">Sign out</button></p>
     <div class="deed-card">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:14px; border-bottom:1px dashed var(--deed-line);">
-        <div><label style="margin:0;">Signed in as</label><div style="font-family:'Zilla Slab',serif; font-weight:700; font-size:16px;">${escapeHtml(discordName)}</div></div>
-        <button class="btn-add-row" id="signOutBtn">Sign out</button>
-      </div>
-      <div class="field">
-        <label>Your Time Zone</label>
-        <select id="reqTimezone">${timezoneOptionsHtml()}</select>
-      </div>
-      <label style="margin-top:6px;">Your Accounts</label>
-      <div id="subRows"></div>
-      <button class="btn-add-row" id="addRowBtn">+ Add another account</button>
-      <div class="form-actions">
-        <button class="btn btn-gold" id="submitBtn">Submit Request</button>
-        <span class="msg" id="signupMsg"></span>
-      </div>
+      <label>Your Time Zone</label>
+      <select id="reqTimezone">${timezoneOptionsHtml(state.myRequest?.timezone)}</select>
     </div>
+    <p class="section-sub" style="margin-top:-10px;">Pick a time below. Times shown in your zone (${escapeHtml(tz)}).</p>
+    <div class="day-tabs" id="dayTabs">
+      ${days.map(d=>{
+        const dt = phtSlotToDate(d, 12);
+        const label = dt.toLocaleDateString(undefined, {timeZone:tz, weekday:'short'});
+        const num = dt.toLocaleDateString(undefined, {timeZone:tz, month:'short', day:'numeric'});
+        return `<div class="day-tab ${d===bookingModalSelectedDate?'active':''}" data-day="${d}"><span class="dow">${label}</span>${num}</div>`;
+      }).join('')}
+    </div>
+    <div class="hour-grid" id="hourGrid"></div>
+    ${myBookings.length ? `
+      <h2 class="section-title" style="margin-top:26px;">Your Bookings</h2>
+      <div id="myBookingsWrap"></div>
+    ` : ''}
   `;
-  renderSubRows();
-  document.getElementById('addRowBtn').onclick = ()=>{
-    signupRows.push({nickname:"",code:"",needed:1});
-    renderSubRows();
-  };
-  document.getElementById('submitBtn').onclick = ()=>submitSignup(discordName, discordId);
   document.getElementById('signOutBtn').onclick = async ()=>{ await sb.auth.signOut(); renderSignup(); };
+  document.getElementById('reqTimezone').onchange = async (e)=>{
+    if(state.myRequest) await sb.from('carry_requests').update({ timezone:e.target.value }).eq('id', state.myRequest.id);
+  };
+  document.querySelectorAll('#dayTabs .day-tab').forEach(tab=>{
+    tab.addEventListener('click', ()=>{ bookingModalSelectedDate = tab.dataset.day; renderHourGrid(); });
+  });
+  renderHourGrid();
+
+  if(myBookings.length){
+    const wrap = document.getElementById('myBookingsWrap');
+    wrap.innerHTML = myBookings.map(b=>{
+      const sub = state.mySubaccounts.find(s=>s.id===b.subaccount_id);
+      return `<div class="acct-card"><div class="acct-top">
+        <div><span class="nm">${escapeHtml(sub?.nickname||'?')}</span> <span class="code">${escapeHtml(sub?.friend_code||'')}</span></div>
+        <span class="status-tag ${b.status}" style="color:var(--ink);">${b.status}</span>
+      </div><div class="booked-list">${formatInViewerTz(phtSlotToDate(b.booking_date,b.booking_hour), tz)}</div></div>`;
+    }).join('');
+  }
 }
 
-function renderSubRows(){
-  const wrap = document.getElementById('subRows');
-  wrap.innerHTML = signupRows.map((row,i)=>`
-    <div class="subacct-row">
-      <div>
-        <label>Account Name</label>
-        <input type="text" value="${escapeAttr(row.nickname)}" data-i="${i}" data-f="nickname" class="rowField" placeholder="alpha">
-        <div class="code-hint"></div>
-      </div>
-      <div>
-        <label>Friend Code</label>
-        <input type="text" value="${escapeAttr(row.code)}" data-i="${i}" data-f="code" class="rowField" placeholder="MGO" maxlength="12">
-        <div class="code-hint" data-hint-i="${i}"></div>
-      </div>
-      <div>
-        <label>Needs</label>
-        <input type="number" min="1" max="20" value="${row.needed}" data-i="${i}" data-f="needed" class="rowField">
-        <div class="code-hint"></div>
-      </div>
-      <button class="icon-btn" data-remove="${i}" title="Remove">&times;</button>
-    </div>
-  `).join('');
-  wrap.querySelectorAll('.rowField').forEach(inp=>{
-    inp.addEventListener('input', e=>{
-      const i = +e.target.dataset.i, f = e.target.dataset.f;
-      if(f==='code'){
-        const upper = e.target.value.toUpperCase();
-        e.target.value = upper;
-        signupRows[i][f] = upper;
-        const hint = wrap.querySelector(`[data-hint-i="${i}"]`);
-        if(hint){
-          if(upper === ''){ hint.textContent = ''; }
-          else if(isValidFriendCode(upper)){ hint.textContent = ''; }
-          else { hint.textContent = 'Should be MGO followed by 9 characters'; hint.className = 'code-hint bad'; }
-        }
-      } else {
-        signupRows[i][f] = f==='needed' ? (parseInt(e.target.value)||1) : e.target.value;
-      }
-    });
-  });
-  wrap.querySelectorAll('[data-remove]').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      if(signupRows.length<=1) return;
-      signupRows.splice(+b.dataset.remove,1);
-      renderSubRows();
-    });
+function isValidFriendCode(code){ return /^MGO[A-Z0-9]{9}$/.test(code); }
+
+// ---------- HOUR GRID (Sign Up tab) ----------
+function renderHourGrid(){
+  const grid = document.getElementById('hourGrid');
+  if(!grid) return;
+  const tz = viewerTz();
+  const cells = [];
+  for(let h=0; h<24; h++){
+    if(!state.availableHours.has(h)) continue;
+    const dateObj = phtSlotToDate(bookingModalSelectedDate, h);
+    const cap = capacityFor(bookingModalSelectedDate, h);
+    const full = cap >= SLOT_CAPACITY;
+    const label = dateObj.toLocaleTimeString(undefined, {timeZone:tz, hour:'numeric', minute:'2-digit'});
+    cells.push(`<div class="hour-cell ${full?'full':'open'}" data-hour="${h}" data-date="${bookingModalSelectedDate}">${label}<span class="cap">${cap}/${SLOT_CAPACITY}</span></div>`);
+  }
+  grid.innerHTML = cells.length ? cells.join('') : '<div class="empty-note">No available hours set up yet.</div>';
+  grid.querySelectorAll('.hour-cell.open').forEach(cell=>{
+    cell.addEventListener('click', ()=>openSeatPicker(cell.dataset.date, +cell.dataset.hour));
   });
 }
-
-async function submitSignup(discordName, discordId){
-  const msg = document.getElementById('signupMsg');
-  const rows = signupRows.filter(r=>r.nickname.trim() && r.code.trim() && r.needed>0);
-  if(!discordId || rows.length===0){
-    msg.textContent = "Add at least one account before submitting.";
-    msg.className = "msg err";
-    return;
-  }
-  const badRow = rows.find(r=>!isValidFriendCode(r.code.trim().toUpperCase()));
-  if(badRow){
-    msg.textContent = `"${badRow.code}" doesn't look like a valid friend code (should be MGO followed by 9 characters).`;
-    msg.className = "msg err";
-    return;
-  }
-  const timezone = document.getElementById('reqTimezone')?.value || '';
-  msg.textContent = "Submitting...";
-  msg.className = "msg";
-  const { data: req, error: e1 } = await sb.from('carry_requests')
-    .insert({ requester_name:discordName, discord_contact:discordName, discord_id:discordId, status:'pending', timezone })
-    .select().single();
-  if(e1){ msg.textContent = "Error: "+e1.message; msg.className="msg err"; return; }
-  const subRows = rows.map(r=>({ request_id:req.id, nickname:r.nickname.trim(), friend_code:r.code.trim(), carries_needed:r.needed }));
-  const { error: e2 } = await sb.from('carry_subaccounts').insert(subRows);
-  if(e2){ msg.textContent = "Error: "+e2.message; msg.className="msg err"; return; }
-  msg.textContent = "Request submitted! You'll be carried once it's approved.";
-  msg.className = "msg ok";
-  signupRows = [{nickname:"",code:"",needed:1}];
-  renderSubRows();
-  loadAll();
+// bookings capacity now excludes expired holds automatically via loadAll filtering server-side status
+function capacityFor(dateStr, hour){
+  return state.bookings.filter(b=>b.booking_date===dateStr && b.booking_hour===hour && b.status!=='cancelled').length;
 }
 
-// ---------- ADMIN CHECK ----------
-async function checkAdmin(){
-  const { data: { user } } = await sb.auth.getUser();
-  currentUser = user || null;
-  if(!user){ isAdmin = false; currentDiscordId = null; currentDiscordName = null; adminChecked = true; return; }
-  const identity = (user.identities||[]).find(i=>i.provider==='discord');
-  currentDiscordId = identity?.id || user.user_metadata?.provider_id || user.user_metadata?.sub;
-  currentDiscordName = user.user_metadata?.full_name || user.user_metadata?.name || 'Discord user';
-  // keep a profile row so RLS policies (which join profiles -> admin_users) can see this user's discord_id
-  await sb.from('profiles').upsert({ id:user.id, discord_id:currentDiscordId, discord_name:currentDiscordName, updated_at:new Date().toISOString() });
-  const { data: adminRow } = await sb.from('admin_users').select('discord_id').eq('discord_id', currentDiscordId).maybeSingle();
-  isAdmin = !!adminRow;
-  adminChecked = true;
-}
+// ---------- SEAT PICKER -> HOLD -> FORM ----------
+let heldRows = [];
+let holdTimerInterval = null;
 
-function renderAdminGate(container, retryFn){
-  if(!currentUser){
-    container.innerHTML = `
-      <div class="gate">
-        <h2 class="section-title" style="text-align:center;">Admin Access</h2>
-        <p class="section-sub" style="text-align:center;">Sign in with Discord to manage requests.</p>
-        <button class="btn btn-gold" id="adminLoginBtn" style="width:100%;">Sign in with Discord</button>
-      </div>
-    `;
-    document.getElementById('adminLoginBtn').onclick = ()=>{
-      sb.auth.signInWithOAuth({ provider:'discord', options:{ redirectTo: window.location.href } });
-    };
-    return;
-  }
-  container.innerHTML = `
-    <div class="gate">
-      <h2 class="section-title" style="text-align:center;">No Admin Access</h2>
-      <p class="section-sub" style="text-align:center;">${escapeHtml(currentDiscordName||'This account')} isn't on the admin list.</p>
+function openSeatPicker(dateStr, hour){
+  const remaining = SLOT_CAPACITY - capacityFor(dateStr, hour);
+  if(remaining <= 0) return;
+  const tz = viewerTz();
+  const label = formatInViewerTz(phtSlotToDate(dateStr, hour), tz);
+  const body = document.getElementById('bookModalBody');
+  const options = [];
+  for(let n=1; n<=Math.min(4, remaining); n++) options.push(n);
+  body.innerHTML = `
+    <h3>How many seats?</h3>
+    <p class="hint">${escapeHtml(label)} — ${remaining} open right now.</p>
+    <div style="display:flex; gap:10px; margin:14px 0;">
+      ${options.map(n=>`<button class="btn btn-gold" data-seats="${n}" style="flex:1;">${n}</button>`).join('')}
     </div>
+    <button class="btn btn-ghost modal-close" id="closeSeatPicker">Cancel</button>
   `;
-}
-
-// ---------- APPROVE ----------
-async function renderApprove(){
-  const el = document.getElementById('tab-approve');
-  await checkAdmin();
-  if(!isAdmin){ renderAdminGate(el); return; }
-  const pending = state.requests.filter(r=>r.status==='pending');
-  const done = state.requests.filter(r=>r.status!=='pending').sort((a,b)=> new Date(b.created_at)-new Date(a.created_at));
-
-  el.innerHTML = `
-    <h2 class="section-title">Approve Requests</h2>
-    <p class="section-sub">Approving generates carry tiles for each account, ready to assign on the Board.</p>
-    <div id="pendingList"></div>
-    ${done.length ? '<h2 class="section-title" style="margin-top:22px;">History</h2><div id="doneList"></div>' : ''}
-  `;
-  const pendingList = document.getElementById('pendingList');
-  pendingList.innerHTML = pending.length ? pending.map(reqCardHtml).join('') : '<div class="empty-note">No pending requests.</div>';
-  pending.forEach(r=>{
-    const card = document.getElementById('req-'+r.id);
-    card.querySelector('.btn-approve')?.addEventListener('click', ()=>approveRequest(r.id));
-    card.querySelector('.btn-reject')?.addEventListener('click', ()=>rejectRequest(r.id));
+  document.getElementById('bookModalBack').classList.add('show');
+  body.querySelectorAll('[data-seats]').forEach(btn=>{
+    btn.addEventListener('click', ()=>holdSeats(dateStr, hour, +btn.dataset.seats));
   });
-  if(done.length){
-    document.getElementById('doneList').innerHTML = done.map(reqCardHtml).join('');
-    done.filter(r=>r.status==='approved').forEach(r=>{
-      const card = document.getElementById('req-'+r.id);
-      card.querySelector('.btn-cancel')?.addEventListener('click', ()=>cancelRequest(r.id));
-    });
-  }
+  document.getElementById('closeSeatPicker').onclick = ()=> document.getElementById('bookModalBack').classList.remove('show');
 }
 
-function reqCardHtml(r){
-  const subs = subsFor(r.id);
-  return `
-    <div class="req-card" id="req-${r.id}">
-      <div class="req-head">
-        <div>
-          <div class="who">${escapeHtml(r.requester_name)}</div>
-          <div class="discord">${escapeHtml(r.discord_contact||'')}${r.timezone ? ' · '+escapeHtml(r.timezone.replace(/_/g,' ')) : ''}</div>
-        </div>
-        <span class="badge ${r.status}">${r.status}</span>
-      </div>
-      <div class="sub-list">
-        ${subs.map(s=>`<div class="sub-chip"><b>${escapeHtml(s.nickname)}</b> · ${escapeHtml(s.friend_code)} · needs ${s.carries_needed}</div>`).join('')}
-      </div>
-      ${r.status==='pending' ? `
-        <div class="req-actions">
-          <button class="btn btn-approve">Approve</button>
-          <button class="btn btn-reject">Reject</button>
-        </div>` : ''}
-      ${r.status==='approved' ? `
-        <div class="req-actions">
-          <button class="btn btn-danger btn-cancel">Cancel Request</button>
-        </div>` : ''}
-    </div>
-  `;
-}
-
-async function approveRequest(reqId){
-  const subs = subsFor(reqId);
-  let tileRows = [];
-  subs.forEach(s=>{
-    for(let i=1;i<=s.carries_needed;i++){
-      tileRows.push({ subaccount_id:s.id, tile_number:i, status:'unassigned' });
+async function holdSeats(dateStr, hour, count){
+  const reqId = state.myRequest?.id;
+  if(!reqId) return;
+  const hm = state.holdMinutes || 7;
+  const { data, error } = await sb.rpc('hold_slot', {
+    p_request_id: reqId, p_date: dateStr, p_hour: hour, p_count: count, p_capacity: SLOT_CAPACITY, p_hold_minutes: hm
+  });
+  if(error){
+    if((error.message||'').includes('slot_full')){
+      alert("Not enough seats left in that slot — someone just grabbed them. Pick another.");
+    } else {
+      alert('Could not hold that slot: '+error.message);
     }
-  });
-  if(tileRows.length){
-    const { error: e1 } = await sb.from('carry_tiles').insert(tileRows);
-    if(e1){ alert('Error creating tiles: '+e1.message); return; }
+    document.getElementById('bookModalBack').classList.remove('show');
+    await loadAll();
+    return;
   }
-  const { error: e2 } = await sb.from('carry_requests').update({status:'approved'}).eq('id', reqId);
-  if(e2){ alert('Error: '+e2.message); return; }
-  loadAll();
-}
-async function rejectRequest(reqId){
-  await sb.from('carry_requests').update({status:'rejected'}).eq('id', reqId);
-  loadAll();
-}
-async function cancelRequest(reqId){
-  const ok = confirm("Cancel this request? Any tiles not yet completed will be removed from the board — they'll no longer be sitting unassigned or assigned anywhere. Already-completed carries stay on record.");
-  if(!ok) return;
-  const subIds = subsFor(reqId).map(s=>s.id);
-  if(subIds.length){
-    await sb.from('carry_tiles').delete().in('subaccount_id', subIds).neq('status','done');
-  }
-  await sb.from('carry_requests').update({status:'cancelled'}).eq('id', reqId);
-  loadAll();
+  heldRows = data || [];
+  await loadAll();
+  renderAccountForm();
 }
 
-// ---------- BOARD ----------
-async function renderBoard(){
-  const el = document.getElementById('tab-board');
+function renderAccountForm(){
+  if(!heldRows.length) return;
+  const body = document.getElementById('bookModalBody');
+  const saved = [];
+  const seen = new Set();
+  state.mySubaccounts.forEach(s=>{
+    const key = s.nickname.toLowerCase();
+    if(!seen.has(key)){ seen.add(key); saved.push(s); }
+  });
+  const tz = viewerTz();
+  const label = formatInViewerTz(phtSlotToDate(heldRows[0].booking_date, heldRows[0].booking_hour), tz);
+
+  body.innerHTML = `
+    <h3>Who's being carried?</h3>
+    <p class="hint">${escapeHtml(label)} — ${heldRows.length} seat(s) held for you. Complete this before the timer runs out or they release.</p>
+    <div id="holdTimer" style="font-family:'Zilla Slab',serif; font-weight:700; color:var(--brick); text-align:center; margin-bottom:12px; font-size:16px;"></div>
+    ${saved.length ? `
+      <label>Quick fill from a saved account</label>
+      <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;">
+        ${saved.map(s=>`<button type="button" class="btn-add-row" data-fill="${s.id}" style="padding:5px 10px; font-size:11.5px;">${escapeHtml(s.nickname)}</button>`).join('')}
+      </div>` : ''}
+    <div id="accountRows"></div>
+    <div class="form-actions">
+      <button class="btn btn-gold" id="submitAccountForm">Confirm Booking</button>
+      <button class="btn btn-ghost" id="cancelHold">Release seats</button>
+    </div>
+    <span class="msg" id="accountFormMsg"></span>
+  `;
+  const rowsWrap = document.getElementById('accountRows');
+  rowsWrap.innerHTML = heldRows.map((r,i)=>`
+    <div class="subacct-row" style="grid-template-columns:1fr 1fr;">
+      <div><label>Nickname</label><input type="text" class="acctInput" data-i="${i}" data-f="nickname" placeholder="alpha"></div>
+      <div><label>Friend Code</label><input type="text" class="acctInput" data-i="${i}" data-f="code" placeholder="MGO894GP7VJU" maxlength="12"></div>
+    </div>
+    <div class="code-hint" data-hint-i="${i}"></div>
+  `).join('');
+  rowsWrap.querySelectorAll('.acctInput[data-f="code"]').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      e.target.value = e.target.value.toUpperCase();
+      const i = e.target.dataset.i;
+      const hint = rowsWrap.querySelector(`[data-hint-i="${i}"]`);
+      if(hint) hint.textContent = (e.target.value && !isValidFriendCode(e.target.value)) ? 'Should look like MGO894GP7VJU' : '';
+    });
+  });
+  body.querySelectorAll('[data-fill]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const s = saved.find(x=>x.id===btn.dataset.fill);
+      if(!s) return;
+      const emptyIdx = heldRows.findIndex((_,i)=>!rowsWrap.querySelector(`[data-i="${i}"][data-f="nickname"]`).value.trim());
+      const idx = emptyIdx === -1 ? 0 : emptyIdx;
+      rowsWrap.querySelector(`[data-i="${idx}"][data-f="nickname"]`).value = s.nickname;
+      rowsWrap.querySelector(`[data-i="${idx}"][data-f="code"]`).value = s.friend_code;
+    });
+  });
+  document.getElementById('submitAccountForm').onclick = submitAccountForm;
+  document.getElementById('cancelHold').onclick = releaseHold;
+
+  startHoldTimer(heldRows[0].hold_expires_at);
+}
+
+function startHoldTimer(expiresAt){
+  clearInterval(holdTimerInterval);
+  const expiry = new Date(expiresAt).getTime();
+  const tick = ()=>{
+    const el = document.getElementById('holdTimer');
+    if(!el){ clearInterval(holdTimerInterval); return; }
+    const remainingMs = expiry - Date.now();
+    if(remainingMs <= 0){
+      clearInterval(holdTimerInterval);
+      el.textContent = "Time's up — your hold expired.";
+      document.getElementById('submitAccountForm').disabled = true;
+      setTimeout(async ()=>{
+        heldRows = [];
+        document.getElementById('bookModalBack').classList.remove('show');
+        await loadAll();
+      }, 1600);
+      return;
+    }
+    const m = Math.floor(remainingMs/60000), s = Math.floor((remainingMs%60000)/1000);
+    el.textContent = `Time left: ${m}:${String(s).padStart(2,'0')}`;
+  };
+  tick();
+  holdTimerInterval = setInterval(tick, 1000);
+}
+
+async function submitAccountForm(){
+  const msg = document.getElementById('accountFormMsg');
+  const rowsWrap = document.getElementById('accountRows');
+  const entries = heldRows.map((r,i)=>({
+    nickname: rowsWrap.querySelector(`[data-i="${i}"][data-f="nickname"]`).value.trim(),
+    code: rowsWrap.querySelector(`[data-i="${i}"][data-f="code"]`).value.trim().toUpperCase(),
+  }));
+  if(entries.some(e=>!e.nickname || !e.code)){ msg.textContent="Fill in every row."; msg.className="msg err"; return; }
+  const bad = entries.find(e=>!isValidFriendCode(e.code));
+  if(bad){ msg.textContent = `"${bad.code}" doesn't look like a valid friend code.`; msg.className="msg err"; return; }
+
+  msg.textContent = "Confirming..."; msg.className="msg";
+  for(let i=0;i<heldRows.length;i++){
+    const entry = entries[i];
+    const { data: sub, error: e1 } = await sb.from('carry_subaccounts')
+      .insert({ request_id: state.myRequest.id, nickname: entry.nickname, friend_code: entry.code, carries_needed: 1 })
+      .select().single();
+    if(e1){ msg.textContent = "Error: "+e1.message; msg.className="msg err"; return; }
+    const { error: e2 } = await sb.from('bookings')
+      .update({ subaccount_id: sub.id, status:'booked', hold_expires_at:null })
+      .eq('id', heldRows[i].id);
+    if(e2){ msg.textContent = "Error: "+e2.message; msg.className="msg err"; return; }
+  }
+  clearInterval(holdTimerInterval);
+  heldRows = [];
+  document.getElementById('bookModalBack').classList.remove('show');
+  await loadAll();
+  renderSignup();
+}
+
+async function releaseHold(){
+  clearInterval(holdTimerInterval);
+  for(const r of heldRows){
+    await sb.from('bookings').delete().eq('id', r.id);
+  }
+  heldRows = [];
+  document.getElementById('bookModalBack').classList.remove('show');
+  await loadAll();
+}
+
+
+// ---------- SCHEDULE (admin) ----------
+async function renderSchedule(){
+  const el = document.getElementById('tab-schedule');
   await checkAdmin();
   if(!isAdmin){ renderAdminGate(el); return; }
 
-  const unassigned = state.tiles.filter(t=>t.status==='unassigned');
+  // pull everything admin needs: all requests, subaccounts, bookings
+  const [rRes, sRes, bRes] = await Promise.all([
+    sb.from('carry_requests').select('*'),
+    sb.from('carry_subaccounts').select('*'),
+    sb.from('bookings').select('*').order('booking_date',{ascending:true}).order('booking_hour',{ascending:true})
+  ]);
+  state.adminRequests = rRes.data || [];
+  state.adminSubaccounts = sRes.data || [];
+  const allBookings = (bRes.data || []).filter(b=>b.status!=='held');
 
   el.innerHTML = `
-    <div class="board-top">
-      <div>
-        <h2 class="section-title" style="margin-bottom:2px;">Unassigned Tiles</h2>
-        <p class="section-sub" style="margin-bottom:0;">Drag a tile onto an open slot below. Click a tile to see who to message.</p>
-      </div>
-      <div class="add-carrier">
-        <input type="text" id="newCarrierName" placeholder="New carrier account name">
-        <button class="btn btn-gold" id="addCarrierBtn">+ Add</button>
-        <button class="btn btn-danger" id="resetBoardBtn">Reset Board</button>
+    <h2 class="section-title">Hour Availability <span style="font-size:11px; color:rgba(244,237,216,0.4); font-family:'Inter';">(PHT, recurring daily)</span></h2>
+    <p class="section-sub">Click hours on or off. Requesters can only book hours marked here.</p>
+    <div class="avail-grid" id="availGrid"></div>
+
+    <div class="msg-template">
+      <label>Booking Window</label>
+      <p class="hint">How many days out people can book, starting from today (PHT).</p>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <input type="number" id="daysWindowInput" min="1" max="30" style="width:80px;" value="${state.bookingDaysWindow||5}">
+        <span style="font-size:12.5px; color:rgba(244,237,216,0.5);">days</span>
+        <button class="btn btn-gold btn-sm" id="saveDaysBtn">Save</button>
+        <span class="msg" id="daysSaveStatus"></span>
       </div>
     </div>
+
+    <div class="msg-template">
+      <label>Seat Hold Time</label>
+      <p class="hint">How long someone's seats stay reserved while they fill out the form, before releasing back up.</p>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <input type="number" id="holdMinutesInput" min="1" max="60" style="width:80px;" value="${state.holdMinutes||7}">
+        <span style="font-size:12.5px; color:rgba(244,237,216,0.5);">minutes</span>
+        <button class="btn btn-gold btn-sm" id="saveHoldBtn">Save</button>
+        <span class="msg" id="holdSaveStatus"></span>
+      </div>
+    </div>
+
     <div class="msg-template">
       <label>Notify Message</label>
-      <p class="hint">Use <code>{nickname}</code> anywhere you want the account name inserted.</p>
+      <p class="hint">Use <code>{nickname}</code> to auto-insert the account name.</p>
       <textarea id="notifyMsgInput">Loading...</textarea>
       <div class="form-actions" style="margin-top:10px;">
         <button class="btn btn-gold" id="saveMsgBtn">Save Message</button>
         <span class="msg" id="msgSaveStatus"></span>
       </div>
     </div>
-    <div class="pool" id="poolZone">
-      ${unassigned.length ? unassigned.map(t=>tileHtml(t)).join('') : '<div class="pool-empty">No unassigned tiles right now.</div>'}
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <h2 class="section-title" style="margin:0;">Bookings</h2>
+      <button class="btn btn-danger" id="resetBoardBtn">Reset Board</button>
     </div>
-    <h2 class="section-title">Carrier Accounts</h2>
-    <div id="lanes"></div>
+    <div id="bookingsList"></div>
   `;
 
+  renderAvailGrid();
   loadNotifyMessage();
   document.getElementById('saveMsgBtn').onclick = saveNotifyMessage;
-
-  document.getElementById('addCarrierBtn').onclick = async ()=>{
-    const name = document.getElementById('newCarrierName').value.trim();
-    if(!name) return;
-    await sb.from('carrier_accounts').insert({name, capacity:4});
-    loadAll();
-  };
+  document.getElementById('saveDaysBtn').onclick = saveDaysWindow;
+  document.getElementById('saveHoldBtn').onclick = saveHoldMinutes;
   document.getElementById('resetBoardBtn').onclick = resetBoard;
+  renderBookingsList(allBookings);
+}
 
-  const lanesEl = document.getElementById('lanes');
-  if(state.carriers.length===0){
-    lanesEl.innerHTML = '<div class="empty-note">Add a carrier account to start assigning tiles.</div>';
-  } else {
-    lanesEl.innerHTML = state.carriers.map(laneHtml).join('');
+function renderAvailGrid(){
+  const grid = document.getElementById('availGrid');
+  let html = '';
+  for(let h=0; h<24; h++){
+    const on = state.availableHours.has(h);
+    const label = h===0?'12am':h<12?h+'am':h===12?'12pm':(h-12)+'pm';
+    html += `<div class="avail-cell ${on?'on':''}" data-hour="${h}">${label}</div>`;
   }
-
-  setupDragAndDrop();
-  document.querySelectorAll('[data-delete-carrier]').forEach(btn=>{
-    btn.addEventListener('click', ()=>deleteCarrier(btn.dataset.deleteCarrier));
+  grid.innerHTML = html;
+  grid.querySelectorAll('.avail-cell').forEach(cell=>{
+    cell.addEventListener('click', async ()=>{
+      const h = +cell.dataset.hour;
+      if(state.availableHours.has(h)){
+        await sb.from('available_hours').delete().eq('hour', h);
+      } else {
+        await sb.from('available_hours').insert({ hour:h });
+      }
+      await loadAll();
+      renderAvailGrid();
+    });
   });
 }
 
-function tileHtml(t){
-  const sub = state.subaccounts.find(s=>s.id===t.subaccount_id);
-  if(!sub) return '';
-  const draggable = t.status !== 'done';
-  return `
-    <div class="tile ${t.status==='done'?'done':''}" data-tile="${t.id}" draggable="${draggable}">
-      <span class="num">#${t.tile_number}</span>
-      ${t.status!=='done' ? `<button class="tile-del" data-del-tile="${t.id}" title="Delete this tile">&times;</button>` : ''}
-      <div class="nick">${escapeHtml(sub.nickname)}</div>
-      <div class="code">${escapeHtml(sub.friend_code)}</div>
-      ${t.status==='assigned' ? `
-        <button class="tile-mark" data-mark="${t.id}">Mark done</button>
-        <button class="tile-mark" data-notify="${t.id}" style="margin-top:4px;">Notify</button>
-      ` : ''}
-      ${t.status==='done' ? `<span class="stamp">Done</span>` : ''}
-    </div>
-  `;
+function renderBookingsList(allBookings){
+  const wrap = document.getElementById('bookingsList');
+  if(!allBookings.length){ wrap.innerHTML = '<div class="empty-note">No bookings yet.</div>'; return; }
+  const byDate = {};
+  allBookings.forEach(b=>{ (byDate[b.booking_date] = byDate[b.booking_date]||[]).push(b); });
+  const dates = Object.keys(byDate).sort();
+
+  wrap.innerHTML = dates.map(d=>{
+    const dt = phtSlotToDate(d, 12);
+    const label = dt.toLocaleDateString(undefined, {timeZone:ADMIN_TZ, weekday:'long', month:'short', day:'numeric'});
+    const rows = byDate[d].map(b=>{
+      const sub = state.adminSubaccounts.find(s=>s.id===b.subaccount_id);
+      const req = sub ? state.adminRequests.find(r=>r.id===sub.request_id) : null;
+      const hourLabel = phtSlotToDate(d, b.booking_hour).toLocaleTimeString(undefined, {timeZone:ADMIN_TZ, hour:'numeric', minute:'2-digit'});
+      return `
+        <div class="booking-row" data-booking="${b.id}">
+          <div class="info">
+            <b>${escapeHtml(sub?.nickname||'?')}</b> — ${hourLabel} PHT
+            <div class="meta">${escapeHtml(sub?.friend_code||'')} · ${escapeHtml(req?.requester_name||'')} · ${escapeHtml((req?.timezone||'').replace(/_/g,' '))}</div>
+          </div>
+          <div class="actions">
+            <span class="status-tag ${b.status}">${b.status}</span>
+            ${b.status==='booked' ? `<button class="btn btn-ghost btn-sm" data-info="${b.id}">Info</button>
+              <button class="btn btn-gold btn-sm" data-notify="${b.id}">Notify</button>
+              <button class="btn btn-ghost btn-sm" data-done="${b.id}">Mark done</button>` : ''}
+            <button class="btn btn-danger btn-sm" data-del="${b.id}">${b.status==='done'?'Delete':'Cancel'}</button>
+          </div>
+        </div>`;
+    }).join('');
+    return `<div class="day-group"><h3>${label}</h3>${rows}</div>`;
+  }).join('');
+
+  wrap.querySelectorAll('[data-info]').forEach(btn=>btn.addEventListener('click', ()=>showBookingInfo(btn.dataset.info)));
+  wrap.querySelectorAll('[data-notify]').forEach(btn=>btn.addEventListener('click', ()=>notifyBooking(btn.dataset.notify, btn)));
+  wrap.querySelectorAll('[data-done]').forEach(btn=>btn.addEventListener('click', ()=>markBookingDone(btn.dataset.done)));
+  wrap.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click', ()=>deleteBooking(btn.dataset.del)));
 }
 
-function laneHtml(c){
-  const laneTiles = state.tiles.filter(t=>t.carrier_id===c.id);
-  const filled = laneTiles.length;
-  const full = filled >= c.capacity;
-  const openSlots = Math.max(0, c.capacity - filled);
-  let slotsHtml = laneTiles.map(t=>tileHtml(t)).join('');
-  for(let i=0;i<openSlots;i++){
-    slotsHtml += `<div class="slot-empty" data-lane="${c.id}">open</div>`;
-  }
-  return `
-    <div class="lane">
-      <div class="lane-head">
-        <span class="name">${escapeHtml(c.name)}</span>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <span class="cap ${full?'full':''}">${filled}/${c.capacity} ${full?'· FULL':''}</span>
-          <button class="icon-btn" data-delete-carrier="${c.id}" title="Delete this carrier account">&times;</button>
-        </div>
-      </div>
-      <div class="slots" data-lanewrap="${c.id}">${slotsHtml}</div>
-    </div>
-  `;
+function showBookingInfo(bookingId){
+  // find in last loaded admin booking set
+  sb.from('bookings').select('*').eq('id', bookingId).single().then(({data:b})=>{
+    if(!b) return;
+    const sub = state.adminSubaccounts.find(s=>s.id===b.subaccount_id);
+    const req = sub ? state.adminRequests.find(r=>r.id===sub.request_id) : null;
+    document.getElementById('infoModalBody').innerHTML = `
+      <h3>${escapeHtml(sub?.nickname||'')}</h3>
+      <div class="row"><span class="k">Friend Code</span><span class="v">${escapeHtml(sub?.friend_code||'')}</span></div>
+      <div class="row"><span class="k">Requested By</span><span class="v" style="font-family:'Inter';">${escapeHtml(req?.requester_name||'')}</span></div>
+      <div class="row"><span class="k">Discord</span><span class="v">${escapeHtml(req?.discord_contact||'')}</span></div>
+      <div class="row"><span class="k">Time Zone</span><span class="v" style="font-family:'Inter';">${escapeHtml((req?.timezone||'—').replace(/_/g,' '))}</span></div>
+      <button class="btn btn-ghost modal-close" id="closeInfoModal">Close</button>
+    `;
+    document.getElementById('infoModalBack').classList.add('show');
+    document.getElementById('closeInfoModal').onclick = ()=> document.getElementById('infoModalBack').classList.remove('show');
+  });
 }
+document.getElementById('infoModalBack').addEventListener('click', e=>{ if(e.target.id==='infoModalBack') e.currentTarget.classList.remove('show'); });
+document.getElementById('bookModalBack').addEventListener('click', e=>{ if(e.target.id==='bookModalBack') e.currentTarget.classList.remove('show'); });
 
-function setupDragAndDrop(){
-  document.querySelectorAll('.tile[draggable="true"]').forEach(tile=>{
-    tile.addEventListener('dragstart', e=>{
-      draggingTileId = tile.dataset.tile;
-      tile.classList.add('dragging');
-    });
-    tile.addEventListener('dragend', ()=> tile.classList.remove('dragging'));
-    tile.addEventListener('click', (e)=>{
-      if(e.target.closest('[data-mark]')) return;
-      showTileInfo(tile.dataset.tile);
-    });
-  });
-  document.querySelectorAll('[data-mark]').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      markDone(btn.dataset.mark);
-    });
-  });
-  document.querySelectorAll('[data-notify]').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      notifyTile(btn.dataset.notify, btn);
-    });
-  });
-  document.querySelectorAll('[data-del-tile]').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      deleteTile(btn.dataset.delTile);
-    });
-  });
-
-  // pool as drop target (unassign)
-  const pool = document.getElementById('poolZone');
-  pool.addEventListener('dragover', e=>{ e.preventDefault(); pool.classList.add('dragover'); });
-  pool.addEventListener('dragleave', ()=> pool.classList.remove('dragover'));
-  pool.addEventListener('drop', async e=>{
-    e.preventDefault(); pool.classList.remove('dragover');
-    if(draggingTileId) await unassignTile(draggingTileId);
-    draggingTileId = null;
-  });
-
-  // empty slots as drop targets (assign)
-  document.querySelectorAll('.slot-empty').forEach(slot=>{
-    slot.addEventListener('dragover', e=>{ e.preventDefault(); slot.classList.add('dragover'); });
-    slot.addEventListener('dragleave', ()=> slot.classList.remove('dragover'));
-    slot.addEventListener('drop', async e=>{
-      e.preventDefault(); slot.classList.remove('dragover');
-      if(draggingTileId) await assignTile(draggingTileId, slot.dataset.lane);
-      draggingTileId = null;
-    });
-  });
-
-  // assigned (non-done) tiles inside a lane also act as drop zones to swap back? keep simple: dropping on lane wrap area not needed.
+async function notifyBooking(bookingId, btn){
+  const original = btn.textContent;
+  btn.textContent = 'Sending...'; btn.disabled = true;
+  const { data, error } = await sb.functions.invoke('send-carry-dm', { body: { bookingId } });
+  if(error || data?.error){ btn.textContent = 'Failed'; console.error(error||data.error); }
+  else { btn.textContent = 'Sent!'; }
+  setTimeout(()=>{ btn.textContent = original; btn.disabled = false; }, 1800);
 }
-
+async function markBookingDone(bookingId){
+  await sb.from('bookings').update({ status:'done' }).eq('id', bookingId);
+  loadAll().then(()=>renderSchedule());
+}
+async function deleteBooking(bookingId){
+  if(!confirm('Remove this booking? This frees the slot back up.')) return;
+  await sb.from('bookings').delete().eq('id', bookingId);
+  loadAll().then(()=>renderSchedule());
+}
 async function resetBoard(){
-  const ok = confirm("Reset the board? This permanently deletes all sign-up requests, their accounts, and every tile — for everyone, from this event. Your carrier accounts (the lanes) stay as-is. This can't be undone.");
+  const ok = confirm("Reset the board? This permanently deletes all sign-up requests, their accounts, and every booking — for everyone. Your hour-availability schedule stays as-is. This can't be undone.");
   if(!ok) return;
   await sb.from('carry_requests').delete().not('id','is',null);
-  loadAll();
-}
-
-async function deleteCarrier(carrierId){
-  const carrier = state.carriers.find(c=>c.id===carrierId);
-  const assignedCount = state.tiles.filter(t=>t.carrier_id===carrierId).length;
-  const warning = assignedCount > 0
-    ? `${carrier?.name || 'This carrier'} has ${assignedCount} tile(s) on it. Deleting it will send those tiles back to the unassigned pool. Continue?`
-    : `Delete ${carrier?.name || 'this carrier'}?`;
-  if(!confirm(warning)) return;
-  if(assignedCount > 0){
-    await sb.from('carry_tiles').update({ carrier_id:null, status:'unassigned' }).eq('carrier_id', carrierId);
-  }
-  await sb.from('carrier_accounts').delete().eq('id', carrierId);
-  loadAll();
+  loadAll().then(()=>renderSchedule());
 }
 
 async function loadNotifyMessage(){
@@ -784,99 +770,71 @@ async function saveNotifyMessage(){
   status.className = error ? 'msg err' : 'msg ok';
   setTimeout(()=>{ status.textContent=''; }, 2000);
 }
-async function assignTile(tileId, carrierId){
-  const tile = state.tiles.find(t=>t.id===tileId);
-  if(!tile) return;
-  const carrier = state.carriers.find(c=>c.id===carrierId);
-  const currentCount = state.tiles.filter(t=>t.carrier_id===carrierId).length;
-  if(carrier && currentCount >= carrier.capacity){ return; }
-  const dup = state.tiles.find(t=> t.carrier_id===carrierId && t.subaccount_id===tile.subaccount_id && t.id!==tileId);
-  if(dup){
-    const sub = state.subaccounts.find(s=>s.id===tile.subaccount_id);
-    alert(`${carrier?.name || 'This carrier'} has already carried ${sub?.nickname || 'this account'} — can't do it twice.`);
-    return;
-  }
-  await sb.from('carry_tiles').update({carrier_id:carrierId, status:'assigned'}).eq('id', tileId);
-  loadAll();
+async function saveDaysWindow(){
+  const status = document.getElementById('daysSaveStatus');
+  const value = parseInt(document.getElementById('daysWindowInput').value);
+  if(!value || value < 1){ status.textContent='Enter at least 1 day.'; status.className='msg err'; return; }
+  const { error } = await sb.from('app_settings').update({ value:String(value), updated_at:new Date().toISOString() }).eq('key','booking_days_window');
+  status.textContent = error ? 'Error: '+error.message : 'Saved!';
+  status.className = error ? 'msg err' : 'msg ok';
+  state.bookingDaysWindow = value;
+  setTimeout(()=>{ status.textContent=''; }, 2000);
 }
-async function unassignTile(tileId){
-  const t = state.tiles.find(x=>x.id===tileId);
-  if(!t || t.status==='done') return;
-  await sb.from('carry_tiles').update({carrier_id:null, status:'unassigned'}).eq('id', tileId);
-  loadAll();
+async function saveHoldMinutes(){
+  const status = document.getElementById('holdSaveStatus');
+  const value = parseInt(document.getElementById('holdMinutesInput').value);
+  if(!value || value < 1){ status.textContent='Enter at least 1 minute.'; status.className='msg err'; return; }
+  const { error } = await sb.from('app_settings').update({ value:String(value), updated_at:new Date().toISOString() }).eq('key','hold_minutes');
+  status.textContent = error ? 'Error: '+error.message : 'Saved!';
+  status.className = error ? 'msg err' : 'msg ok';
+  state.holdMinutes = value;
+  setTimeout(()=>{ status.textContent=''; }, 2000);
 }
-async function deleteTile(tileId){
-  const t = state.tiles.find(x=>x.id===tileId);
-  if(!t || t.status==='done') return;
-  const sub = state.subaccounts.find(s=>s.id===t.subaccount_id);
-  if(!confirm(`Delete this tile for ${sub?.nickname || 'this account'}? This can't be undone.`)) return;
-  await sb.from('carry_tiles').delete().eq('id', tileId);
-  loadAll();
-}
-async function markDone(tileId){
-  await sb.from('carry_tiles').update({status:'done'}).eq('id', tileId);
-  loadAll();
-}
-async function notifyTile(tileId, btn){
-  const original = btn.textContent;
-  btn.textContent = 'Sending...';
-  btn.disabled = true;
-  const { data, error } = await sb.functions.invoke('send-carry-dm', {
-    body: { tileId }
-  });
-  if(error || data?.error){
-    btn.textContent = 'Failed';
-    console.error(error || data.error);
-  } else {
-    btn.textContent = 'Sent!';
-  }
-  setTimeout(()=>{ btn.textContent = original; btn.disabled = false; }, 1800);
-}
-
-function showTileInfo(tileId){
-  const t = state.tiles.find(x=>x.id===tileId);
-  if(!t) return;
-  const sub = state.subaccounts.find(s=>s.id===t.subaccount_id);
-  const req = sub ? state.requests.find(r=>r.id===sub.request_id) : null;
-  document.getElementById('modalBody').innerHTML = `
-    <h3>${escapeHtml(sub?.nickname||'')}</h3>
-    <div class="row"><span class="k">Friend Code</span><span class="v">${escapeHtml(sub?.friend_code||'')}</span></div>
-    <div class="row"><span class="k">Requested By</span><span class="v" style="font-family:'Inter';">${escapeHtml(req?.requester_name||'')}</span></div>
-    <div class="row"><span class="k">Discord</span><span class="v">${escapeHtml(req?.discord_contact||'')}</span></div>
-    <div class="row"><span class="k">Time Zone</span><span class="v" style="font-family:'Inter';">${escapeHtml((req?.timezone||'—').replace(/_/g,' '))}</span></div>
-    <div class="row"><span class="k">Status</span><span class="v" style="font-family:'Inter';">${t.status}</span></div>
-    <button class="btn btn-ghost modal-close" id="closeModal">Close</button>
-  `;
-  document.getElementById('modalBack').classList.add('show');
-  document.getElementById('closeModal').onclick = ()=> document.getElementById('modalBack').classList.remove('show');
-}
-document.getElementById('modalBack').addEventListener('click', e=>{
-  if(e.target.id==='modalBack') e.currentTarget.classList.remove('show');
-});
 
 // ---------- utils ----------
-function isValidFriendCode(code){ return /^MGO[A-Z0-9]{9}$/.test(code); }
-
-function timezoneOptionsHtml(){
+function timezoneOptionsHtml(preselect){
   let zones;
-  try{
-    zones = (typeof Intl.supportedValuesOf === 'function') ? Intl.supportedValuesOf('timeZone') : null;
-  } catch(e){ zones = null; }
+  try{ zones = (typeof Intl.supportedValuesOf === 'function') ? Intl.supportedValuesOf('timeZone') : null; } catch(e){ zones = null; }
   if(!zones || !zones.length){
     zones = ['UTC','America/Los_Angeles','America/Denver','America/Chicago','America/New_York','America/Sao_Paulo',
       'Europe/London','Europe/Paris','Europe/Berlin','Europe/Moscow','Africa/Lagos','Africa/Cairo',
-      'Asia/Dubai','Asia/Kolkata','Asia/Bangkok','Asia/Shanghai','Asia/Singapore','Asia/Tokyo','Asia/Seoul',
+      'Asia/Manila','Asia/Dubai','Asia/Kolkata','Asia/Bangkok','Asia/Shanghai','Asia/Singapore','Asia/Tokyo','Asia/Seoul',
       'Australia/Sydney','Pacific/Auckland'];
   }
-  let detected = 'UTC';
-  try{ detected = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch(e){}
+  let detected = preselect || 'UTC';
+  if(!preselect){ try{ detected = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch(e){} }
   return zones.map(z=>`<option value="${z}" ${z===detected?'selected':''}>${z.replace(/_/g,' ')}</option>`).join('');
 }
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function escapeAttr(s){ return escapeHtml(s); }
 
-loadAll();
-setInterval(loadAll, 15000); // light polling so approvals/assignments stay in sync across devices
+// ---------- init ----------
+async function initialLoad(){
+  const overlay = document.getElementById('loadingOverlay');
+  const text = document.getElementById('loadingText');
+  const retryBtn = document.getElementById('loadingRetry');
+  overlay.classList.remove('hide');
+  retryBtn.style.display = 'none';
+  text.textContent = 'Loading the board...';
+
+  const slowTimer = setTimeout(()=>{
+    text.textContent = "Still loading — this can take longer on a slow connection or right after the board's been idle.";
+    retryBtn.style.display = 'inline-block';
+  }, 6000);
+
+  const ok = await loadAll();
+  clearTimeout(slowTimer);
+
+  if(ok){ overlay.classList.add('hide'); }
+  else {
+    text.textContent = "Couldn't load — check your connection and try again.";
+    retryBtn.style.display = 'inline-block';
+  }
+}
+document.getElementById('loadingRetry').addEventListener('click', initialLoad);
+
+initialLoad();
+setInterval(loadAll, 15000);
 </script>
 </body>
 </html>
