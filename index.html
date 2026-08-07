@@ -184,6 +184,7 @@ let currentUser = null, isAdmin = false, currentDiscordId = null, currentDiscord
 let signupRows = [{nickname:"",code:"",needed:1}];
 let bookingModalSelectedDate = null;
 let adminSelectedDate = null;
+let adminHourlyViewOnly = false;
 
 // ---------- date/time helpers ----------
 function todayPHTDateStr(){
@@ -413,7 +414,7 @@ function renderHourGrid(){
     const dateObj = phtSlotToDate(bookingModalSelectedDate, s);
     const cap = capacityFor(bookingModalSelectedDate, s);
     const full = cap >= SLOT_CAPACITY;
-    const label = dateObj.toLocaleTimeString(undefined, {timeZone:tz, hour:'numeric', minute:'2-digit'});
+    const label = dateObj.toLocaleString(undefined, {timeZone:tz, month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
     cells.push(`<div class="hour-cell ${full?'full':'open'}" data-slot="${s}" data-date="${bookingModalSelectedDate}">${label}<span class="cap">${cap}/${SLOT_CAPACITY}</span></div>`);
   }
   grid.innerHTML = cells.length ? cells.join('') : '<div class="empty-note">No available times set up yet.</div>';
@@ -526,7 +527,7 @@ function renderAccountForm(){
   rowsWrap.innerHTML = heldRows.map((r,i)=>`
     <div class="subacct-row" style="grid-template-columns:1fr 1fr;">
       <div><label>Nickname</label><input type="text" class="acctInput" data-i="${i}" data-f="nickname" placeholder="alpha"></div>
-      <div><label>Friend Code</label><input type="text" class="acctInput" data-i="${i}" data-f="code" placeholder="MGO894GP7VJU" maxlength="12"></div>
+      <div><label>Friend Code</label><input type="text" class="acctInput" data-i="${i}" data-f="code" placeholder="MGO445MH3A57" maxlength="12"></div>
     </div>
     <div class="code-hint" data-hint-i="${i}"></div>
   `).join('');
@@ -535,7 +536,7 @@ function renderAccountForm(){
       e.target.value = e.target.value.toUpperCase();
       const i = e.target.dataset.i;
       const hint = rowsWrap.querySelector(`[data-hint-i="${i}"]`);
-      if(hint) hint.textContent = (e.target.value && !isValidFriendCode(e.target.value)) ? 'Should look like MGO894GP7VJU' : '';
+      if(hint) hint.textContent = (e.target.value && !isValidFriendCode(e.target.value)) ? 'Should look like MGO445MH3A57' : '';
     });
   });
   body.querySelectorAll('[data-fill]').forEach(btn=>{
@@ -593,10 +594,24 @@ async function submitAccountForm(){
   msg.textContent = "Confirming..."; msg.className="msg";
   for(let i=0;i<heldRows.length;i++){
     const entry = entries[i];
-    const { data: sub, error: e1 } = await sb.from('carry_subaccounts')
-      .insert({ request_id: state.myRequest.id, nickname: entry.nickname, friend_code: entry.code, carries_needed: 1 })
-      .select().single();
-    if(e1){ msg.textContent = "Error: "+e1.message; msg.className="msg err"; return; }
+    const existing = state.mySubaccounts.find(s=>s.nickname.toLowerCase()===entry.nickname.toLowerCase());
+    let sub;
+    if(existing){
+      const { data: updated, error: eUp } = await sb.from('carry_subaccounts')
+        .update({ friend_code: entry.code })
+        .eq('id', existing.id)
+        .select().single();
+      if(eUp){ msg.textContent = "Error: "+eUp.message; msg.className="msg err"; return; }
+      sub = updated;
+      existing.friend_code = entry.code; // keep local cache in sync
+    } else {
+      const { data: created, error: e1 } = await sb.from('carry_subaccounts')
+        .insert({ request_id: state.myRequest.id, nickname: entry.nickname, friend_code: entry.code, carries_needed: 1 })
+        .select().single();
+      if(e1){ msg.textContent = "Error: "+e1.message; msg.className="msg err"; return; }
+      sub = created;
+      state.mySubaccounts.push(sub);
+    }
     const { error: e2 } = await sb.from('bookings')
       .update({ subaccount_id: sub.id, status:'booked', hold_expires_at:null })
       .eq('id', heldRows[i].id);
@@ -644,6 +659,9 @@ async function renderSchedule(){
       <button class="btn btn-gold btn-sm" id="jumpDateBtn">Configure This Date</button>
     </div>
     <div id="configuredDateChips" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;"></div>
+    <label style="display:flex; align-items:center; gap:8px; margin-bottom:10px; cursor:pointer; font-size:12.5px; color:rgba(244,237,216,0.6); text-transform:none; letter-spacing:normal; font-weight:400;">
+      <input type="checkbox" id="hourlyViewToggle" style="width:auto;"> Show every hour only (hide the :30 slots)
+    </label>
     <div id="availGridWrap"></div>
 
     <div class="msg-template">
@@ -679,6 +697,11 @@ async function renderSchedule(){
   document.getElementById('jumpDateBtn').onclick = ()=>{
     adminSelectedDate = document.getElementById('adminDateInput').value || adminSelectedDate;
     renderConfiguredDateChips();
+    renderAvailGrid();
+  };
+  document.getElementById('hourlyViewToggle').checked = adminHourlyViewOnly;
+  document.getElementById('hourlyViewToggle').onchange = (e)=>{
+    adminHourlyViewOnly = e.target.checked;
     renderAvailGrid();
   };
   renderConfiguredDateChips();
@@ -718,6 +741,7 @@ function renderAvailGrid(){
   const slotsForDay = state.dateHours.get(adminSelectedDate) || new Set();
   let html = '';
   for(let s=0; s<48; s++){
+    if(adminHourlyViewOnly && s % 2 !== 0) continue; // hide the :30 slots when hourly-only view is on
     const on = slotsForDay.has(s);
     html += `<div class="avail-cell ${on?'on':''}" data-slot="${s}">${formatSlotLabel(s)}</div>`;
   }
