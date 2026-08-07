@@ -64,6 +64,8 @@
   .btn-gold{ background: var(--gold); color:#2B2205; }
   .btn-gold:hover{ background: var(--gold-bright); }
   .btn-ghost{ background:transparent; border:1px solid var(--deed-line); color:var(--ink); }
+  .btn-ghost-dark{ background:transparent; border:1px solid var(--deed-line); color:var(--deed); }
+  .btn-ghost-dark:hover{ background:rgba(244,237,216,0.08); }
   .btn-danger{ background: var(--brick); color:#fff; }
   .btn-danger:hover{ background:#C1573B; }
   .btn-add-row{ background:none; border:1px dashed var(--deed-line); color:var(--ink-soft); padding:8px 14px; border-radius:6px; cursor:pointer; font-size:13px; font-family:'Inter'; }
@@ -790,9 +792,11 @@ function renderBookingsList(allBookings){
           </div>
           <div class="actions">
             <span class="status-tag ${b.status}">${b.status}</span>
-            ${b.status==='booked' ? `<button class="btn btn-ghost btn-sm" data-info="${b.id}">Info</button>
+            ${b.payment_received ? `<span class="status-tag done" style="background:#C8E6D0; color:#1B5E30;">PAID</span>` : ''}
+            ${b.status==='booked' ? `<button class="btn btn-ghost-dark btn-sm" data-info="${b.id}">Info</button>
               <button class="btn btn-gold btn-sm" data-notify="${b.id}">Notify</button>
-              <button class="btn btn-ghost btn-sm" data-done="${b.id}">Mark done</button>` : ''}
+              <button class="btn btn-ghost-dark btn-sm" data-done="${b.id}">Mark done</button>` : ''}
+            ${b.status==='done' && !b.payment_received ? `<button class="btn btn-gold btn-sm" data-paid="${b.id}">Mark Paid</button>` : ''}
             <button class="btn btn-danger btn-sm" data-del="${b.id}">${b.status==='done'?'Delete':'Cancel'}</button>
           </div>
         </div>`;
@@ -803,6 +807,7 @@ function renderBookingsList(allBookings){
   wrap.querySelectorAll('[data-info]').forEach(btn=>btn.addEventListener('click', ()=>showBookingInfo(btn.dataset.info)));
   wrap.querySelectorAll('[data-notify]').forEach(btn=>btn.addEventListener('click', ()=>notifyBooking(btn.dataset.notify, btn)));
   wrap.querySelectorAll('[data-done]').forEach(btn=>btn.addEventListener('click', ()=>markBookingDone(btn.dataset.done)));
+  wrap.querySelectorAll('[data-paid]').forEach(btn=>btn.addEventListener('click', ()=>markPaymentReceived(btn.dataset.paid)));
   wrap.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click', ()=>deleteBooking(btn.dataset.del)));
 }
 
@@ -837,6 +842,10 @@ async function notifyBooking(bookingId, btn){
 }
 async function markBookingDone(bookingId){
   await sb.from('bookings').update({ status:'done' }).eq('id', bookingId);
+  loadAll().then(()=>renderSchedule());
+}
+async function markPaymentReceived(bookingId){
+  await sb.from('bookings').update({ payment_received:true }).eq('id', bookingId);
   loadAll().then(()=>renderSchedule());
 }
 async function deleteBooking(bookingId){
