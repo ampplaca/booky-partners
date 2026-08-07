@@ -382,6 +382,12 @@ async function renderSignup(){
 function isValidFriendCode(code){ return /^MGO[A-Z0-9]{9}$/.test(code); }
 
 // ---------- DAY TABS + HOUR GRID (Sign Up tab) ----------
+function anchorSlotForDate(d){
+  const slots = state.dateHours.get(d);
+  if(slots && slots.size) return Math.min(...slots);
+  return 24; // fallback: noon PHT if nothing configured yet
+}
+
 function renderDayTabs(){
   const wrap = document.getElementById('dayTabs');
   if(!wrap) return;
@@ -389,7 +395,7 @@ function renderDayTabs(){
   const days = state.configuredDates || [];
   if(!days.length){ wrap.innerHTML = '<div class="empty-note">No dates open for booking yet — check back soon.</div>'; return; }
   wrap.innerHTML = days.map(d=>{
-    const dt = phtSlotToDate(d, 24);
+    const dt = phtSlotToDate(d, anchorSlotForDate(d));
     const label = dt.toLocaleDateString(undefined, {timeZone:tz, weekday:'short'});
     const num = dt.toLocaleDateString(undefined, {timeZone:tz, month:'short', day:'numeric'});
     return `<div class="day-tab ${d===bookingModalSelectedDate?'active':''}" data-day="${d}"><span class="dow">${label}</span>${num}</div>`;
